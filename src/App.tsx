@@ -1,122 +1,109 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
-import heroImg from "./assets/hero.png";
-import "./App.css";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Route, Routes } from "react-router";
+import { AuthProvider } from "./auth/AuthProvider";
+import { HomeRedirect, RequireRole } from "./auth/RequireRole";
+import { AppLayout } from "./components/layout/AppLayout";
+import { LoadingState } from "./components/States";
+import { ToastProvider } from "./components/toast/ToastProvider";
 
-function App() {
-  const [count, setCount] = useState(0);
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const TodayPage = lazy(() => import("./pages/guide/TodayPage"));
+const StudentsPage = lazy(() => import("./pages/guide/StudentsPage"));
+const StudentFormPage = lazy(() => import("./pages/guide/StudentFormPage"));
+const RouteProposalsPage = lazy(
+  () => import("./pages/guide/RouteProposalsPage"),
+);
+const NewRoutePage = lazy(() => import("./pages/guide/NewRoutePage"));
+const RouteEditorPage = lazy(() => import("./pages/guide/RouteEditorPage"));
+const AttendancePage = lazy(() => import("./pages/guide/AttendancePage"));
+const TripOperationPage = lazy(
+  () => import("./pages/shared/trip/TripOperationPage"),
+);
+const LiveMapPage = lazy(() => import("./pages/shared/LiveMapPage"));
+const RoutesPage = lazy(() => import("./pages/shared/RoutesPage"));
+const RouteDetailPage = lazy(() => import("./pages/shared/RouteDetailPage"));
+const ReportsPage = lazy(() => import("./pages/shared/ReportsPage"));
+const ArrivalsPage = lazy(() => import("./pages/shared/ArrivalsPage"));
+const SchedulePage = lazy(() => import("./pages/leader/SchedulePage"));
+const PendingPage = lazy(() => import("./pages/leader/PendingPage"));
+const RequestsPage = lazy(() => import("./pages/manager/RequestsPage"));
+const RequestDetailPage = lazy(
+  () => import("./pages/manager/RequestDetailPage"),
+);
+const ManagementPage = lazy(() => import("./pages/manager/ManagementPage"));
 
+export function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <Suspense fallback={<LoadingState />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
 
-      <div className="ticks"></div>
+              <Route
+                path="/guide"
+                element={
+                  <RequireRole role="GUIDE">
+                    <AppLayout role="GUIDE" />
+                  </RequireRole>
+                }
+              >
+                <Route index element={<TodayPage />} />
+                <Route path="trips/:tripId" element={<TripOperationPage />} />
+                <Route path="students" element={<StudentsPage />} />
+                <Route path="students/new" element={<StudentFormPage />} />
+                <Route
+                  path="students/:studentId"
+                  element={<StudentFormPage />}
+                />
+                <Route path="routes" element={<RouteProposalsPage />} />
+                <Route path="routes/new" element={<NewRoutePage />} />
+                <Route path="routes/:code" element={<RouteEditorPage />} />
+                <Route path="attendance" element={<AttendancePage />} />
+              </Route>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+              <Route
+                path="/leader"
+                element={
+                  <RequireRole role="LEADER">
+                    <AppLayout role="LEADER" />
+                  </RequireRole>
+                }
+              >
+                <Route path="live" element={<LiveMapPage />} />
+                <Route path="routes" element={<RoutesPage />} />
+                <Route path="routes/:code" element={<RouteDetailPage />} />
+                <Route path="trips/:tripId" element={<TripOperationPage />} />
+                <Route path="schedule" element={<SchedulePage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="arrivals" element={<ArrivalsPage />} />
+                <Route path="pending" element={<PendingPage />} />
+              </Route>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+              <Route
+                path="/manager"
+                element={
+                  <RequireRole role="MANAGER">
+                    <AppLayout role="MANAGER" />
+                  </RequireRole>
+                }
+              >
+                <Route path="requests" element={<RequestsPage />} />
+                <Route path="requests/:code" element={<RequestDetailPage />} />
+                <Route path="live" element={<LiveMapPage />} />
+                <Route path="routes" element={<RoutesPage />} />
+                <Route path="routes/:code" element={<RouteDetailPage />} />
+                <Route path="admin" element={<ManagementPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="arrivals" element={<ArrivalsPage />} />
+              </Route>
+
+              <Route path="*" element={<HomeRedirect />} />
+            </Routes>
+          </Suspense>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
-
-export default App;
