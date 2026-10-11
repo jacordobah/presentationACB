@@ -1,0 +1,81 @@
+.simulator-toggle {
+  position: absolute;
+  left: 10px;
+  bottom: 24px;
+  z-index: 1100;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.simulator-toggle__state {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--late-soft);
+  color: var(--late);
+  font-size: var(--text-xs);
+}
+
+.simulator {
+  position: absolute;
+  right: 0;
+  bottom: 18px;
+  left: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px 6px 6px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  background: var(--surface);
+}
+
+.simulator__actions {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.simulator__actions button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.simulator__actions button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.simulator__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
