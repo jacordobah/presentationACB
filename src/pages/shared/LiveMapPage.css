@@ -1,0 +1,107 @@
+.live-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.live-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px var(--gutter);
+  border-bottom: 1px solid var(--line);
+}
+
+.live-zone {
+  flex: 0 1 220px;
+}
+
+.chip-filter {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip-filter button {
+  flex: none;
+  min-width: 56px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip-filter button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.live-map-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.live-map {
+  height: 100%;
+}
+
+.live-empty {
+  top: 12px;
+  left: 50%;
+  width: min(420px, calc(100% - 24px));
+  transform: translateX(-50%);
+}
+
+.live-empty > * {
+  padding: 12px 16px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 700;
+  text-align: center;
+}
+
+.caravan-panel {
+  position: absolute;
+  right: 10px;
+  bottom: 24px;
+  left: 10px;
+  z-index: 1100;
+  display: grid;
+  gap: 10px;
+  max-width: 480px;
+  padding: 12px 14px 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.caravan-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.last-code {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+
+.last-code--emergency {
+  background: var(--emergency-soft);
+  outline: 2px solid var(--emergency);
+}
