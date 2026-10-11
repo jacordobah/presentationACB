@@ -1,0 +1,70 @@
+server {
+    listen 80;
+    listen 443 ssl;
+    http2 on;
+    server_name _;
+
+    ssl_certificate /etc/nginx/certs/acb.crt;
+    ssl_certificate_key /etc/nginx/certs/acb.key;
+
+    root /usr/share/nginx/html;
+    client_max_body_size 25m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
+
+    # Docker's embedded DNS. Upstreams are resolved per request, so Nginx starts even when a
+    # backend is down, and only that backend's paths fail with 502.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+
+    location /api/admin/ {
+        set $admin_api ${ADMIN_API_URL};
+        rewrite ^/api/admin/(.*)$ /api/v1/$1 break;
+        proxy_pass $admin_api;
+        error_page 502 503 504 = @admin_unavailable;
+    }
+
+    location /api/geo/ {
+        set $geo_api ${GEO_API_URL};
+        rewrite ^/api/geo/(.*)$ /api/v1/$1 break;
+        proxy_pass $geo_api;
+        error_page 502 503 504 = @geo_unavailable;
+    }
+
+    location @admin_unavailable {
+        default_type application/json;
+        return 502 '{"message":"El servicio de administración no está disponible. Intenta de nuevo en unos minutos."}';
+    }
+
+    location @geo_unavailable {
+        default_type application/json;
+        return 502 '{"detail":"El servicio de geolocalización no está disponible. Intenta de nuevo en unos minutos."}';
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location ~ ^/(sw\.js|registerSW\.js)$ {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+    }
+}
