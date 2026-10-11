@@ -1,6 +1,7 @@
 import { createAdminApp } from "./admin.js";
 import { createGeoApp } from "./geo.js";
 import { seed } from "./seed.js";
+import { startSimulation } from "./simulation.js";
 import { Store } from "./store.js";
 
 const ADMIN_PORT = 4001;
@@ -9,6 +10,7 @@ const GEO_PORT = 4002;
 const startedAt = new Date();
 const store = new Store();
 seed(store, startedAt);
+startSimulation(store, startedAt);
 
 createAdminApp(store).listen(ADMIN_PORT, () => {
   console.log(`Admin API listening on port ${ADMIN_PORT}`);
