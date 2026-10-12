@@ -32,19 +32,12 @@ import {
   TRIP_LABELS,
 } from "../../lib/labels";
 
-const GRADES = Array.from({ length: 11 }, (_, index) => String(index + 1));
+const GRADES = Array.from({ length: 11 }, (_, i) => String(i + 1));
 const MAX_GUARDIANS = 3;
 const DOCUMENT_NUMBER = /^[A-Za-z0-9]{4,15}$/;
 const PHONE = /^\d{10}$/;
 
-interface GuardianRow {
-  key: number;
-  value: Guardian;
-}
-
 type Errors = Record<string, string>;
-
-let nextRowKey = 1;
 
 const emptyGuardian = (primary: boolean): Guardian => ({
   name: "",
@@ -55,8 +48,37 @@ const emptyGuardian = (primary: boolean): Guardian => ({
   primary,
 });
 
-function toRows(guardians: Guardian[]): GuardianRow[] {
-  return guardians.map((value) => ({ key: nextRowKey++, value }));
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Record<string, string>;
+  error?: string;
+}) {
+  return (
+    <Field label={label} error={error}>
+      {(control) => (
+        <select
+          {...control}
+          className="input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {Object.entries(options).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      )}
+    </Field>
+  );
 }
 
 function validate(student: StudentInput): Errors {
@@ -142,12 +164,12 @@ function GuardianFields({
   guardian: Guardian;
   errors: Errors;
   canRemove: boolean;
-  onChange: (guardian: Guardian) => void;
-  onMakePrimary: () => void;
-  onRemove: () => void;
+  onChange: (index: number, guardian: Guardian) => void;
+  onMakePrimary: (index: number) => void;
+  onRemove: (index: number) => void;
 }) {
   const update = (change: Partial<Guardian>) =>
-    onChange({ ...guardian, ...change });
+    onChange(index, { ...guardian, ...change });
   const error = (field: string) => errors[`guardian${index}.${field}`];
 
   return (
@@ -158,7 +180,7 @@ function GuardianFields({
           type="radio"
           name="primary-guardian"
           checked={guardian.primary}
-          onChange={onMakePrimary}
+          onChange={() => onMakePrimary(index)}
         />
         Acudiente principal
       </label>
@@ -177,24 +199,12 @@ function GuardianFields({
             />
           )}
         </Field>
-        <Field label="Parentesco">
-          {(control) => (
-            <select
-              {...control}
-              className="input"
-              value={guardian.relationship}
-              onChange={(event) =>
-                update({ relationship: event.target.value as Relationship })
-              }
-            >
-              {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        <Select
+          label="Parentesco"
+          value={guardian.relationship}
+          onChange={(v) => update({ relationship: v as Relationship })}
+          options={RELATIONSHIP_LABELS}
+        />
         <Field label="Teléfono" error={error("phone")}>
           {(control) => (
             <input
@@ -208,24 +218,14 @@ function GuardianFields({
             />
           )}
         </Field>
-        <Field label="Tipo de documento">
-          {(control) => (
-            <select
-              {...control}
-              className="input"
-              value={guardian.documentType}
-              onChange={(event) =>
-                update({ documentType: event.target.value as DocumentType })
-              }
-            >
-              {Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {value} {label}
-                </option>
-              ))}
-            </select>
+        <Select
+          label="Tipo de documento"
+          value={guardian.documentType}
+          onChange={(v) => update({ documentType: v as DocumentType })}
+          options={Object.fromEntries(
+            Object.entries(DOCUMENT_TYPE_LABELS).map(([k, v]) => [k, `${k} ${v}`]),
           )}
-        </Field>
+        />
         <Field label="Número de documento" error={error("documentNumber")}>
           {(control) => (
             <input
@@ -243,7 +243,7 @@ function GuardianFields({
         <button
           type="button"
           className="button button--quiet"
-          onClick={onRemove}
+          onClick={() => onRemove(index)}
         >
           <Trash2 size={20} aria-hidden="true" />
           Quitar acudiente {index + 1}
@@ -273,8 +273,8 @@ function StudentForm({
     schoolShift: student?.schoolShift ?? ("MORNING" as SchoolShift),
     meetingPoints: student?.meetingPoints ?? { "541": "", "542": "" },
   });
-  const [guardians, setGuardians] = useState<GuardianRow[]>(() =>
-    toRows(student?.guardians ?? [emptyGuardian(true)]),
+  const [guardians, setGuardians] = useState<Guardian[]>(
+    student?.guardians ?? [emptyGuardian(true)],
   );
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -288,26 +288,26 @@ function StudentForm({
     value: (typeof fields)[K],
   ) => setFields((current) => ({ ...current, [key]: value }));
 
-  const updateGuardian = (key: number, value: Guardian) =>
-    setGuardians((rows) =>
-      rows.map((row) => (row.key === key ? { ...row, value } : row)),
+  const updateGuardian = (index: number, value: Guardian) =>
+    setGuardians((current) =>
+      current.map((guardian, i) => (i === index ? value : guardian)),
     );
 
-  const makePrimary = (key: number) =>
-    setGuardians((rows) =>
-      rows.map((row) => ({
-        ...row,
-        value: { ...row.value, primary: row.key === key },
+  const makePrimary = (index: number) =>
+    setGuardians((current) =>
+      current.map((guardian, i) => ({
+        ...guardian,
+        primary: i === index,
       })),
     );
 
-  const removeGuardian = (key: number) =>
-    setGuardians((rows) => {
-      const remaining = rows.filter((row) => row.key !== key);
-      if (remaining.some((row) => row.value.primary)) return remaining;
-      return remaining.map((row, index) => ({
-        ...row,
-        value: { ...row.value, primary: index === 0 },
+  const removeGuardian = (index: number) =>
+    setGuardians((current) => {
+      const remaining = current.filter((_, i) => i !== index);
+      if (remaining.some((guardian) => guardian.primary)) return remaining;
+      return remaining.map((guardian, i) => ({
+        ...guardian,
+        primary: i === 0,
       }));
     });
 
@@ -319,9 +319,9 @@ function StudentForm({
       name: fields.name.trim(),
       address: fields.address.trim(),
       routeCode,
-      guardians: guardians.map((row) => ({
-        ...row.value,
-        name: row.value.name.trim(),
+      guardians: guardians.map((guardian) => ({
+        ...guardian,
+        name: guardian.name.trim(),
       })),
     };
     const found = validate(input);
@@ -365,24 +365,14 @@ function StudentForm({
               />
             )}
           </Field>
-          <Field label="Tipo de documento">
-            {(control) => (
-              <select
-                {...control}
-                className="input"
-                value={fields.documentType}
-                onChange={(event) =>
-                  setField("documentType", event.target.value as DocumentType)
-                }
-              >
-                {Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {value} {label}
-                  </option>
-                ))}
-              </select>
+          <Select
+            label="Tipo de documento"
+            value={fields.documentType}
+            onChange={(v) => setField("documentType", v as DocumentType)}
+            options={Object.fromEntries(
+              Object.entries(DOCUMENT_TYPE_LABELS).map(([k, v]) => [k, `${k} ${v}`]),
             )}
-          </Field>
+          />
           <Field label="Número de documento" error={errors.documentNumber}>
             {(control) => (
               <input
@@ -411,40 +401,18 @@ function StudentForm({
               />
             )}
           </Field>
-          <Field label="Grado">
-            {(control) => (
-              <select
-                {...control}
-                className="input"
-                value={fields.grade}
-                onChange={(event) => setField("grade", event.target.value)}
-              >
-                {GRADES.map((grade) => (
-                  <option key={grade} value={grade}>
-                    {grade}°
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Field label="Jornada">
-            {(control) => (
-              <select
-                {...control}
-                className="input"
-                value={fields.schoolShift}
-                onChange={(event) =>
-                  setField("schoolShift", event.target.value as SchoolShift)
-                }
-              >
-                {Object.entries(SCHOOL_SHIFT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
+          <Select
+            label="Grado"
+            value={fields.grade}
+            onChange={(v) => setField("grade", v)}
+            options={Object.fromEntries(GRADES.map((g) => [g, `${g}°`]))}
+          />
+          <Select
+            label="Jornada"
+            value={fields.schoolShift}
+            onChange={(v) => setField("schoolShift", v as SchoolShift)}
+            options={SCHOOL_SHIFT_LABELS}
+          />
         </div>
       </fieldset>
 
@@ -474,16 +442,16 @@ function StudentForm({
         <p className="muted small">
           Registra entre 1 y 3 acudientes y marca uno como principal.
         </p>
-        {guardians.map((row, index) => (
+        {guardians.map((guardian, index) => (
           <GuardianFields
-            key={row.key}
+            key={index}
             index={index}
-            guardian={row.value}
+            guardian={guardian}
             errors={errors}
             canRemove={guardians.length > 1}
-            onChange={(value) => updateGuardian(row.key, value)}
-            onMakePrimary={() => makePrimary(row.key)}
-            onRemove={() => removeGuardian(row.key)}
+            onChange={updateGuardian}
+            onMakePrimary={makePrimary}
+            onRemove={removeGuardian}
           />
         ))}
         {guardians.length < MAX_GUARDIANS && (
@@ -491,10 +459,7 @@ function StudentForm({
             type="button"
             className="button"
             onClick={() =>
-              setGuardians((rows) => [
-                ...rows,
-                ...toRows([emptyGuardian(false)]),
-              ])
+              setGuardians((current) => [...current, emptyGuardian(false)])
             }
           >
             <Plus size={20} aria-hidden="true" />

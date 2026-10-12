@@ -81,7 +81,9 @@ export default function RoutesPage() {
         loadingLabel="Cargando rutas…"
         isEmpty={(list) => list.length === 0}
         empty={
-          <EmptyState icon={RouteIcon} title="No hay rutas con esos filtros" />
+          <EmptyState icon={RouteIcon} title="No hay rutas con esos filtros">
+            Intenta cambiar los filtros de zona o estado para ver más rutas.
+          </EmptyState>
         }
       >
         {(list) => (

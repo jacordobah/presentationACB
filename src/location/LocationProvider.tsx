@@ -29,26 +29,27 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!watching || !geolocationSupported) return;
-    const id = navigator.geolocation.watchPosition(
-      (position) => {
-        setDeviceFix({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp,
-          simulated: false,
-        });
-        setError(null);
-      },
-      (positionError) => {
-        setError(
-          positionError.code === positionError.PERMISSION_DENIED
-            ? "denied"
-            : "unavailable",
-        );
-      },
-      WATCH_OPTIONS,
-    );
+    const id: ReturnType<typeof navigator.geolocation.watchPosition> =
+      navigator.geolocation.watchPosition(
+        (position) => {
+          setDeviceFix({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+            simulated: false,
+          });
+          setError(null);
+        },
+        (positionError) => {
+          setError(
+            positionError.code === positionError.PERMISSION_DENIED
+              ? "denied"
+              : "unavailable",
+          );
+        },
+        WATCH_OPTIONS,
+      );
     return () => navigator.geolocation.clearWatch(id);
   }, [watching]);
 

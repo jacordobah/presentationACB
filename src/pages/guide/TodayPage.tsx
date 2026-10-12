@@ -1,5 +1,5 @@
 import { Bike, Route as RouteIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { listCodeReports, reportCode } from "../../api/codes";
 import { listRoutes } from "../../api/routes";
@@ -165,10 +165,13 @@ export default function TodayPage() {
     },
   );
   const routes = useResource("routes:mine", () => listRoutes());
-  const dayFinished =
-    trips.data !== undefined &&
-    trips.data.length > 0 &&
-    trips.data.every((trip) => trip.status === "FINISHED");
+  const dayFinished = useMemo(
+    () =>
+      trips.data !== undefined &&
+      trips.data.length > 0 &&
+      trips.data.every((trip) => trip.status === "FINISHED"),
+    [trips.data],
+  );
 
   return (
     <div className="page">

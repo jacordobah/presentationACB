@@ -53,12 +53,18 @@ function buildUrl(
 }
 
 function fallbackMessage(status: number) {
-  if (status === 403) return "No tienes permiso para hacer esto.";
-  if (status === 404) return "No encontramos lo que buscas.";
-  if (status >= 502 && status <= 504) {
-    return "El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.";
-  }
-  return "Algo salió mal. Intenta de nuevo.";
+  const messages: Record<number, string> = {
+    403: "No tienes permiso para realizar esta acción. Contacta al administrador si necesitas acceso.",
+    404: "No encontramos el recurso solicitado. Verifica que la información sea correcta.",
+    409: "Este recurso ya existe o hay un conflicto con los datos. Revisa la información e intenta de nuevo.",
+    422: "La información enviada no es válida. Revisa los campos marcados e intenta de nuevo.",
+  };
+  if (messages[status]) return messages[status];
+  if (status >= 502 && status <= 504)
+    return "El servicio no está disponible en este momento. Intenta de nuevo en unos minutos. Si el problema persiste, contacta soporte.";
+  if (status >= 500)
+    return "Hubo un error en el servidor. Intenta de nuevo. Si el problema persiste, contacta soporte.";
+  return "Algo salió mal. Intenta de nuevo. Si el problema persiste, recarga la página.";
 }
 
 // Admin errors come as { message } (Spring) and geo errors as { detail }
@@ -72,9 +78,9 @@ async function readErrorMessage(response: Response) {
     if (typeof detail === "string") return detail;
     if (Array.isArray(detail)) {
       const issues = detail
-        .map((issue: { msg?: unknown }) => issue?.msg)
-        .filter((msg): msg is string => typeof msg === "string");
-      if (issues.length > 0) return issues.join(" ");
+        .map((i: { msg?: unknown }) => i?.msg)
+        .filter((m): m is string => typeof m === "string");
+      if (issues.length) return issues.join(" ");
     }
   }
   return fallbackMessage(response.status);
@@ -91,7 +97,7 @@ async function send(url: string, init: RequestInit, authenticated: boolean) {
   } catch {
     throw new ApiError(
       0,
-      "No hay conexión con el servidor. Revisa tu conexión a internet e intenta de nuevo.",
+      "No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo. Si el problema persiste, el servicio podría estar temporalmente fuera de servicio.",
     );
   }
   if (response.status === 401 && authenticated) handleUnauthorized();

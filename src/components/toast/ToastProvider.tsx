@@ -6,7 +6,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ToastContext,
   type ToastOptions,
@@ -30,9 +30,9 @@ const ICONS = {
 };
 
 const VISIBLE_TOASTS = 3;
-let nextId = 1;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const nextId = useRef(1);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismiss = useCallback((id: number) => {
@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (message: string, options: ToastOptions = {}) => {
       const toast = {
-        id: nextId++,
+        id: nextId.current++,
         message,
         tone: options.tone ?? "info",
         action: options.action,

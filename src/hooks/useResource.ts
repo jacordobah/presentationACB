@@ -29,12 +29,12 @@ export function useResource<T>(
 
   useEffect(() => {
     loadRef.current = load;
-  });
+  }, [load]);
 
   useEffect(() => {
     if (key === null) return;
     let cancelled = false;
-    let timer: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const run = async () => {
       if (pollMs && document.hidden) return;

@@ -29,7 +29,8 @@ export default function RequestsPage() {
         isEmpty={(list) => list.length === 0}
         empty={
           <EmptyState icon={Inbox} title="No hay rutas por revisar">
-            Cuando un guía envíe una ruta a revisión aparecerá aquí.
+            Cuando un guía envíe una ruta a revisión, aparecerá aquí para que puedas
+            aprobarla o rechazarla.
           </EmptyState>
         }
       >

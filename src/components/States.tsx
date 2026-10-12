@@ -10,13 +10,7 @@ export function LoadingState({ label = "Cargando…" }: { label?: string }) {
   );
 }
 
-export function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry?: () => void;
-}) {
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="state" role="alert">
       <CircleAlert className="state__icon" size={40} aria-hidden="true" />
@@ -31,11 +25,7 @@ export function ErrorState({
   );
 }
 
-export function EmptyState({
-  icon: Icon = Inbox,
-  title,
-  children,
-}: {
+export function EmptyState({ icon: Icon = Inbox, title, children }: {
   icon?: LucideIcon;
   title: string;
   children?: ReactNode;

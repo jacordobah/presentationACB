@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Marker } from "react-leaflet";
 import { listCodeReports } from "../../api/codes";
 import { listLatestPositions } from "../../api/positions";
@@ -166,20 +166,31 @@ export default function LiveMapPage() {
     ? caravans.filter((caravan) => followed.includes(caravan.routeCode))
     : caravans;
   const selected = visible.find((caravan) => caravan.key === selectedKey);
-  const geometryOf = (caravan: Caravan) =>
-    geometries.data?.find(
-      (geometry) =>
-        geometry.routeCode === caravan.routeCode &&
-        geometry.tripCode === caravan.tripCode,
-    );
+  const geometryOf = useMemo(
+    () => (caravan: Caravan) =>
+      geometries.data?.find(
+        (geometry) =>
+          geometry.routeCode === caravan.routeCode &&
+          geometry.tripCode === caravan.tripCode,
+      ),
+    [geometries.data],
+  );
   // The view fits the visible caravans together with their whole routes, so a
   // followed caravan stays in view as it moves without the map re-centering on
   // every update.
-  const fitPoints = visible.flatMap((caravan) => [
-    caravan.location,
-    ...(geometryOf(caravan)?.line ?? []),
-  ]);
-  const fitKey = `${zoneKey}:${visible.map((caravan) => caravan.key).join("|")}:${geometries.data !== undefined}`;
+  const fitPoints = useMemo(
+    () =>
+      visible.flatMap((caravan) => [
+        caravan.location,
+        ...(geometryOf(caravan)?.line ?? []),
+      ]),
+    [visible, geometryOf],
+  );
+  const fitKey = useMemo(
+    () =>
+      `${zoneKey}:${visible.map((caravan) => caravan.key).join("|")}:${geometries.data !== undefined}`,
+    [zoneKey, visible, geometries.data],
+  );
 
   const toggleFollow = (routeCode: string) =>
     setFollowed((current) =>

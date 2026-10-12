@@ -161,7 +161,9 @@ function RouteStudents({ route }: { route: Route }) {
               <EmptyState
                 icon={Users}
                 title="Esta ruta todavía no tiene estudiantes"
-              />
+              >
+                Agrega estudiantes para que aparezcan en la lista de asistencia.
+              </EmptyState>
             ) : (
               <ul className="list">
                 {active.map((student) => (
