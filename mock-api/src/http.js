@@ -28,7 +28,7 @@ export function requestLogger(service) {
 
 export function notFoundHandler(toBody) {
   return (req, res) => {
-    res.status(404).json(toBody("El recurso solicitado no existe."));
+    res.status(404).json(toBody("El recurso solicitado no existe.", 404));
   };
 }
 
@@ -36,8 +36,10 @@ export function errorHandler(toBody) {
   // Express only treats a middleware as an error handler when it declares four
   // parameters.
   return (error, req, res, _next) => {
+    const send = (status, message) =>
+      res.status(status).json(toBody(message, status));
     if (error instanceof HttpError) {
-      res.status(error.status).json(toBody(error.message));
+      send(error.status, error.message);
       return;
     }
     if (error instanceof multer.MulterError) {
@@ -45,16 +47,14 @@ export function errorHandler(toBody) {
         error.code === "LIMIT_FILE_SIZE"
           ? "El archivo supera el tamaño máximo de 25 MB."
           : "No se pudo leer el archivo enviado.";
-      res.status(422).json(toBody(message));
+      send(422, message);
       return;
     }
     if (error.type === "entity.parse.failed") {
-      res
-        .status(400)
-        .json(toBody("El cuerpo de la solicitud no es JSON válido."));
+      send(400, "El cuerpo de la solicitud no es JSON válido.");
       return;
     }
     console.error(error);
-    res.status(500).json(toBody("Error interno del servidor."));
+    send(500, "Error interno del servidor.");
   };
 }

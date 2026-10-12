@@ -1,4 +1,5 @@
 import express from "express";
+import { STATUS_CODES } from "node:http";
 import {
   authenticate,
   canAccessRoute,
@@ -47,7 +48,12 @@ const RELATIONSHIPS = [
 const SCHOOL_SHIFTS = ["MORNING", "AFTERNOON", "FULL_DAY"];
 const ROUTE_CODE = /^[A-Z]{2}\d{2}$/;
 
-const toBody = (message) => ({ message });
+const toBody = (message, status) => ({
+  timestamp: new Date().toISOString(),
+  status,
+  error: STATUS_CODES[status],
+  message,
+});
 
 export function createAdminApp(store) {
   const app = express();
