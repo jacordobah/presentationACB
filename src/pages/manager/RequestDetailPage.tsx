@@ -76,7 +76,7 @@ function Review({ route }: { route: Route }) {
   const navigate = useNavigate();
   const toast = useToast();
   const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }),
+    listTripGeometries({ routeCode: route.code }, route.schoolName),
   );
   const [approving, setApproving] = useState(false);
   const [confirmingApproval, setConfirmingApproval] = useState(false);

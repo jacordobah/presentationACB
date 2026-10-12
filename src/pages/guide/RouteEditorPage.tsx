@@ -183,7 +183,7 @@ function RouteEditor({
 }) {
   const toast = useToast();
   const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }),
+    listTripGeometries({ routeCode: route.code }, route.schoolName),
   );
   const schools = useResource(`schools:${route.zone}`, async () =>
     (await listSchools(route.zone)).filter(

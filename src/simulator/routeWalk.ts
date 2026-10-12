@@ -1,13 +1,6 @@
 import type { LatLng } from "../api/types";
 import { distanceMeters } from "../lib/geo";
 
-export function lineLength(line: LatLng[]) {
-  let total = 0;
-  for (let i = 1; i < line.length; i++)
-    total += distanceMeters(line[i - 1], line[i]);
-  return total;
-}
-
 export function pointAlong(line: LatLng[], distance: number): LatLng {
   let remaining = Math.max(0, distance);
   for (let i = 1; i < line.length; i++) {

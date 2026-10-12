@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LatLng, TripGeometry } from "../api/types";
+import { lineLength } from "../lib/geo";
 import { readJson, removeKey, writeJson } from "../lib/storage";
 import { useDeviceLocation } from "../location/LocationContext";
-import { distanceAlong, lineLength, pointAlong } from "./routeWalk";
+import { distanceAlong, pointAlong } from "./routeWalk";
 import "./LocationSimulator.css";
 
 const STORAGE_KEY = "acb.simulator.position";

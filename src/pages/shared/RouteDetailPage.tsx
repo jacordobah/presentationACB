@@ -31,7 +31,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 function MapTab({ route }: { route: Route }) {
   const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }),
+    listTripGeometries({ routeCode: route.code }, route.schoolName),
   );
   return (
     <AsyncContent

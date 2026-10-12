@@ -15,6 +15,13 @@ export function distanceMeters(a: LatLng, b: LatLng) {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h));
 }
 
+export function lineLength(line: LatLng[]) {
+  let total = 0;
+  for (let i = 1; i < line.length; i++)
+    total += distanceMeters(line[i - 1], line[i]);
+  return total;
+}
+
 export function formatDistance(meters: number) {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return formatKilometers(meters);

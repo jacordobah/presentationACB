@@ -1,26 +1,25 @@
+import { lineLength } from "../lib/geo";
+import { DESTINATION_RADIUS_M, MEETING_POINT_RADIUS_M } from "../lib/rules";
 import { request } from "./http";
 import type { LatLng, TripCode, TripGeometry } from "./types";
 
-interface PointDto {
-  type: "Point";
-  coordinates: [number, number];
+type Position = [number, number];
+
+interface GeoDocumentDto {
+  _id: string;
+  import_id: string;
+  route_code?: string;
+  trip_code?: TripCode;
+  name: string;
 }
 
-interface GeoTripDto {
-  route_code: string;
-  trip_code: TripCode;
-  name: string;
-  length_m: number;
-  geometry: { type: "LineString"; coordinates: [number, number][] };
-  meeting_points: {
-    code: string;
-    order: number;
-    name: string;
-    description: string | null;
-    radius_m: number;
-    location: PointDto;
-  }[];
-  destination: { name: string; radius_m: number; location: PointDto };
+interface RouteDto extends GeoDocumentDto {
+  geometry: { type: "LineString"; coordinates: Position[] };
+}
+
+interface MeetingPointDto extends GeoDocumentDto {
+  description: string | null;
+  location: { type: "Point"; coordinates: Position };
 }
 
 interface ImportResultDto {
@@ -30,30 +29,50 @@ interface ImportResultDto {
   saved_points: number;
 }
 
-const toLatLng = ([lng, lat]: [number, number]): LatLng => ({ lat, lng });
+const toLatLng = ([lng, lat]: Position): LatLng => ({ lat, lng });
 
-function toTripGeometry(dto: GeoTripDto): TripGeometry {
+// Documents imported without route_code and trip_code cannot be tied to a trip.
+const isTripRoute = (route: RouteDto): route is Required<RouteDto> =>
+  Boolean(route.route_code && route.trip_code);
+
+// The geo API stores the KMZ as it comes, so the meeting point codes, radii,
+// length and destination are derived here.
+function toTripGeometry(
+  route: Required<RouteDto>,
+  points: MeetingPointDto[],
+  schoolName: string,
+): TripGeometry {
+  const line = route.geometry.coordinates.map(toLatLng);
+  const meetingPoints = points.map((point, index) => ({
+    code: `PE${String(index + 1).padStart(2, "0")}`,
+    order: index + 1,
+    name: point.name,
+    description: point.description,
+    radiusM: MEETING_POINT_RADIUS_M,
+    location: toLatLng(point.location.coordinates),
+  }));
+  const lastPoint = meetingPoints[meetingPoints.length - 1];
   return {
-    routeCode: dto.route_code,
-    tripCode: dto.trip_code,
-    name: dto.name,
-    lengthM: dto.length_m,
-    line: dto.geometry.coordinates.map(toLatLng),
-    meetingPoints: dto.meeting_points
-      .map((point) => ({
-        code: point.code,
-        order: point.order,
-        name: point.name,
-        description: point.description,
-        radiusM: point.radius_m,
-        location: toLatLng(point.location.coordinates),
-      }))
-      .sort((a, b) => a.order - b.order),
-    destination: {
-      name: dto.destination.name,
-      radiusM: dto.destination.radius_m,
-      location: toLatLng(dto.destination.location.coordinates),
-    },
+    routeCode: route.route_code,
+    tripCode: route.trip_code,
+    name: route.name,
+    lengthM: Math.round(lineLength(line)),
+    line,
+    meetingPoints,
+    // A 541 trip ends at the school, where its line ends; a 542 trip ends at
+    // its last meeting point.
+    destination:
+      route.trip_code === "541"
+        ? {
+            name: schoolName,
+            radiusM: DESTINATION_RADIUS_M,
+            location: line[line.length - 1],
+          }
+        : {
+            name: lastPoint.name,
+            radiusM: lastPoint.radiusM,
+            location: lastPoint.location,
+          },
   };
 }
 
@@ -63,15 +82,37 @@ interface GeometryFilters {
   tripCode?: TripCode;
 }
 
-export async function listTripGeometries(filters: GeometryFilters = {}) {
-  const trips = await request<GeoTripDto[]>("geo", "routes", {
-    query: {
-      zone: filters.zone,
-      route_code: filters.routeCode,
-      trip_code: filters.tripCode,
-    },
-  });
-  return trips.map(toTripGeometry);
+// Every upload is a new import and the earlier ones stay stored, so each trip
+// uses only its latest line, the one with the greatest ObjectId.
+export async function listTripGeometries(
+  filters: GeometryFilters = {},
+  schoolName?: string | null,
+) {
+  const query = { route_code: filters.routeCode, trip_code: filters.tripCode };
+  const [routes, points] = await Promise.all([
+    request<RouteDto[]>("geo", "routes", { query }),
+    request<MeetingPointDto[]>("geo", "meeting-points", { query }),
+  ]);
+  const latest = new Map<string, Required<RouteDto>>();
+  for (const route of routes.filter(isTripRoute)) {
+    if (filters.zone && !route.route_code.startsWith(filters.zone)) continue;
+    const key = `${route.route_code}:${route.trip_code}`;
+    const current = latest.get(key);
+    if (!current || route._id > current._id) latest.set(key, route);
+  }
+  return [...latest.values()]
+    .map((route) =>
+      toTripGeometry(
+        route,
+        points.filter((point) => point.import_id === route.import_id),
+        schoolName ?? "Colegio",
+      ),
+    )
+    .sort(
+      (a, b) =>
+        a.routeCode.localeCompare(b.routeCode) ||
+        a.tripCode.localeCompare(b.tripCode),
+    );
 }
 
 export async function importKmz(
