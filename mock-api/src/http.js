@@ -7,6 +7,7 @@ export class HttpError extends Error {
   }
 }
 
+export const badRequest = (message) => new HttpError(400, message);
 export const unauthorized = (message) => new HttpError(401, message);
 export const forbidden = (message = "No tienes permiso para esta acción.") =>
   new HttpError(403, message);
@@ -43,11 +44,11 @@ export function errorHandler(toBody) {
       return;
     }
     if (error instanceof multer.MulterError) {
-      const message =
-        error.code === "LIMIT_FILE_SIZE"
-          ? "El archivo supera el tamaño máximo de 25 MB."
-          : "No se pudo leer el archivo enviado.";
-      send(422, message);
+      if (error.code === "LIMIT_FILE_SIZE") {
+        send(413, "El archivo supera el tamaño máximo de 20 MB.");
+      } else {
+        send(422, "No se pudo leer el archivo enviado.");
+      }
       return;
     }
     if (error.type === "entity.parse.failed") {

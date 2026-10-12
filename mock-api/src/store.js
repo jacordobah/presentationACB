@@ -1,7 +1,21 @@
 import { randomBytes } from "node:crypto";
+import { buildGeoTrip } from "./rules.js";
 import { bogotaDate } from "./time.js";
 
-export const objectId = () => randomBytes(12).toString("hex");
+const PROCESS_ID = randomBytes(5).toString("hex");
+let objectCount = 0;
+
+// Laid out like a MongoDB ObjectId (creation second, process and counter), so
+// later ids sort after earlier ones.
+export function objectId() {
+  objectCount = (objectCount + 1) % 0x1000000;
+  const seconds = Math.floor(Date.now() / 1000);
+  return [
+    seconds.toString(16).padStart(8, "0"),
+    PROCESS_ID,
+    objectCount.toString(16).padStart(6, "0"),
+  ].join("");
+}
 
 export const zoneOf = (routeCode) => routeCode.slice(0, 2);
 
@@ -17,7 +31,8 @@ export class Store {
   reports = [];
   photos = new Map();
   positions = new Map();
-  #geoTrips = new Map();
+  geoRoutes = [];
+  geoMeetingPoints = [];
   #sequences = new Map();
 
   nextId(kind) {
@@ -63,16 +78,55 @@ export class Store {
     );
   }
 
+  // Like geolocaACB, every import stays stored; the latest import of a trip is
+  // its current geometry.
   geoTrip(routeCode, tripCode) {
-    return this.#geoTrips.get(`${routeCode}:${tripCode}`);
+    const latest = this.geoRoutes.findLast(
+      (route) => route.route_code === routeCode && route.trip_code === tripCode,
+    );
+    if (!latest) return undefined;
+    const points = this.geoMeetingPoints.filter(
+      (point) => point.import_id === latest.import_id,
+    );
+    return {
+      importId: latest.import_id,
+      ...buildGeoTrip({
+        routeCode,
+        tripCode,
+        name: latest.name,
+        coordinates: latest.geometry.coordinates,
+        points: points.map((point) => ({
+          name: point.name,
+          description: point.description,
+          location: point.location.coordinates,
+        })),
+        schoolName: this.school(this.route(routeCode).schoolId).name,
+      }),
+    };
   }
 
-  geoTrips() {
-    return [...this.#geoTrips.values()];
-  }
-
-  saveGeoTrip(geoTrip) {
-    this.#geoTrips.set(`${geoTrip.routeCode}:${geoTrip.tripCode}`, geoTrip);
+  saveImport({ routeCode, tripCode, name, coordinates, meetingPoints }) {
+    const origin = {
+      import_id: objectId(),
+      route_code: routeCode,
+      trip_code: tripCode,
+    };
+    this.geoRoutes.push({
+      _id: objectId(),
+      ...origin,
+      name,
+      geometry: { type: "LineString", coordinates },
+    });
+    for (const point of meetingPoints) {
+      this.geoMeetingPoints.push({
+        _id: objectId(),
+        ...origin,
+        name: point.name,
+        description: point.description,
+        location: { type: "Point", coordinates: point.location },
+      });
+    }
+    return origin.import_id;
   }
 
   tripsOn(date) {

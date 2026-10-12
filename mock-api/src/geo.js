@@ -3,6 +3,7 @@ import multer from "multer";
 import { authenticate, canAccessRoute, scopedZone } from "./auth.js";
 import { distanceMeters, formatKilometers } from "./geometry.js";
 import {
+  badRequest,
   errorHandler,
   forbidden,
   notFound,
@@ -31,33 +32,17 @@ import {
   requiredText,
 } from "./validation.js";
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 const toBody = (detail) => ({ detail });
 const photoUrl = (id) => `/api/v1/photos/${id}`;
-const toPoint = ([lng, lat]) => ({ type: "Point", coordinates: [lng, lat] });
 
-function toGeoTripDto(geoTrip) {
-  return {
-    route_code: geoTrip.routeCode,
-    trip_code: geoTrip.tripCode,
-    name: geoTrip.name,
-    length_m: geoTrip.lengthM,
-    geometry: { type: "LineString", coordinates: geoTrip.coordinates },
-    meeting_points: geoTrip.meetingPoints.map((point, index) => ({
-      code: point.code,
-      order: index + 1,
-      name: point.name,
-      description: point.description,
-      radius_m: point.radiusM,
-      location: toPoint(point.location),
-    })),
-    destination: {
-      name: geoTrip.destination.name,
-      radius_m: geoTrip.destination.radiusM,
-      location: toPoint(geoTrip.destination.location),
-    },
-  };
+function matchesQuery(document, query) {
+  return (
+    (!query.import_id || document.import_id === query.import_id) &&
+    (!query.route_code || document.route_code === query.route_code) &&
+    (!query.trip_code || document.trip_code === query.trip_code)
+  );
 }
 
 function parseInstant(value, fallback) {
@@ -97,21 +82,13 @@ export function createGeoApp(store) {
   };
 
   api.get("/routes", (req, res) => {
-    const { zone, route_code: routeCode, trip_code: tripCode } = req.query;
-    const geoTrips = store
-      .geoTrips()
-      .filter(
-        (geoTrip) =>
-          (!zone || zoneOf(geoTrip.routeCode) === zone) &&
-          (!routeCode || geoTrip.routeCode === routeCode) &&
-          (!tripCode || geoTrip.tripCode === tripCode),
-      )
-      .sort(
-        (a, b) =>
-          a.routeCode.localeCompare(b.routeCode) ||
-          a.tripCode.localeCompare(b.tripCode),
-      );
-    res.json(geoTrips.map(toGeoTripDto));
+    res.json(store.geoRoutes.filter((route) => matchesQuery(route, req.query)));
+  });
+
+  api.get("/meeting-points", (req, res) => {
+    res.json(
+      store.geoMeetingPoints.filter((point) => matchesQuery(point, req.query)),
+    );
   });
 
   api.post("/imports/kmz", upload.single("file"), async (req, res) => {
@@ -133,6 +110,9 @@ export function createGeoApp(store) {
       );
     }
     if (!req.file) throw unprocessable("Adjunta el archivo KMZ del recorrido.");
+    if (!req.file.originalname.toLowerCase().endsWith(".kmz"))
+      throw badRequest("El archivo debe tener la extensión .kmz.");
+    if (req.file.size === 0) throw badRequest("El archivo está vacío.");
 
     const { line, points } = await readKmz(req.file.buffer);
     if (!line || line.coordinates.length < 2) {
@@ -162,10 +142,10 @@ export function createGeoApp(store) {
         `Los recorridos 541 y 542 suman ${formatKilometers(geoTrip.lengthM + other.lengthM)} y superan el máximo de ${formatKilometers(MAX_ROUTE_LENGTH_M)}.`,
       );
     }
-    store.saveGeoTrip(geoTrip);
+    const importId = store.saveImport(geoTrip);
     res.status(201).json({
       message: `KMZ del recorrido ${tripCode} importado.`,
-      import_id: objectId(),
+      import_id: importId,
       saved_routes: 1,
       saved_points: points.length,
     });

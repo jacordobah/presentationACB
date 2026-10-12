@@ -346,7 +346,7 @@ function seedSchoolsAndRoutes(store) {
 
   for (const layout of TRIP_LAYOUTS) {
     const route = store.route(layout.routeCode);
-    store.saveGeoTrip(
+    store.saveImport(
       buildGeoTrip({
         routeCode: layout.routeCode,
         tripCode: layout.tripCode,

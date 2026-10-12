@@ -94,17 +94,10 @@ function scheduleArrival(store, username, trip, at) {
 // movement.
 class Caravan {
   constructor(store, trip, progress, index) {
-    const geoTrip = store.geoTrip(trip.routeCode, trip.tripCode);
     this.store = store;
     this.trip = trip;
     this.index = index;
-    this.coordinates = geoTrip.coordinates;
-    this.meetingPoints = geoTrip.meetingPoints;
-    this.length = geoTrip.lengthM;
-    this.stops = stopDistances(
-      this.coordinates,
-      this.meetingPoints.map((point) => point.location),
-    );
+    this.follow(store.geoTrip(trip.routeCode, trip.tripCode));
     this.distance = this.length * progress;
     this.nextStop = this.stops.findIndex((stop) => stop > this.distance);
     if (this.nextStop === -1) this.nextStop = this.stops.length;
@@ -116,10 +109,28 @@ class Caravan {
     for (let stop = 0; stop < this.nextStop; stop++) this.takeAttendance(stop);
   }
 
+  follow(geoTrip) {
+    this.importId = geoTrip.importId;
+    this.coordinates = geoTrip.coordinates;
+    this.meetingPoints = geoTrip.meetingPoints;
+    this.length = geoTrip.lengthM;
+    this.stops = stopDistances(
+      this.coordinates,
+      this.meetingPoints.map((point) => point.location),
+    );
+  }
+
   tick(now) {
     const elapsedSeconds = (now - this.lastTickAt) / 1000;
     this.lastTickAt = now;
     if (this.trip.status !== "IN_PROGRESS") return;
+
+    // A new KMZ replaces the trip's line, so the caravan starts over on it.
+    const geoTrip = this.store.geoTrip(this.trip.routeCode, this.trip.tripCode);
+    if (geoTrip.importId !== this.importId) {
+      this.follow(geoTrip);
+      this.restart();
+    }
 
     if (this.phase !== "riding" && now >= this.resumeAt) {
       if (this.phase === "arrived") this.restart();
