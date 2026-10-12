@@ -8,6 +8,10 @@ as a PWA, and from laptops.
 Nginx serves the build and proxies `/api/admin` to adminACB and `/api/geo` to geolocaACB. Until
 those backends are ready, `mock-api/` implements their contract in memory.
 
+Route geometry comes from geolocaACB's `GET /routes` and `GET /meeting-points`, filtered by
+`route_code` and `trip_code`, which geolocaACB still has to store on each KMZ import. The app
+uses the latest import of each trip.
+
 ## Run with Docker
 
 Standalone demo, with the app and the mock API:
@@ -20,7 +24,8 @@ docker compose up -d --build
 Open https://localhost:8443 (self-signed certificate) or http://localhost:8088.
 
 The mock API keeps everything in memory and builds today's schedule relative to the moment it
-starts. Restart it to reset the demo with `docker compose restart mock-api`.
+starts. Restart it to reset the demo data with `docker compose restart mock-api`; session tokens
+are signed JWTs, so users stay logged in.
 
 With a public HTTPS URL for phones:
 
@@ -77,6 +82,7 @@ does. `npm run lint`, `npm run build` and `npm run format` are also available.
 | `VITE_POLL_INTERVAL_MS`     | `5000`                 | Refresh interval of the live maps.                       |
 | `ADMIN_API_URL`             | `http://mock-api:4001` | Nginx upstream for `/api/admin`.                         |
 | `GEO_API_URL`               | `http://mock-api:4002` | Nginx upstream for `/api/geo`.                           |
+| `ACB_JWT_SECRET`            | adminACB's dev secret  | Secret the mock API signs session tokens with.           |
 
 `VITE_*` values are read at build time, so changing them needs `--build`. In integration mode
 the upstreams default to `http://admin-api:8080` and `http://geoloca-api:8000`.
