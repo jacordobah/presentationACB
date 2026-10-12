@@ -75,7 +75,13 @@ export function createGeoApp(store) {
   app.disable("x-powered-by");
   app.use(requestLogger("geo"));
   app.use(express.json());
-  api.use(authenticate(store));
+  api.use(
+    authenticate(store, (res) =>
+      res
+        .status(401)
+        .json(toBody("Tu sesión no es válida o expiró. Ingresa de nuevo.")),
+    ),
+  );
 
   const findRoute = (user, code) => {
     const route = store.route(code);

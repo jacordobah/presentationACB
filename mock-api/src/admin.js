@@ -3,6 +3,7 @@ import {
   authenticate,
   canAccessRoute,
   canOperateTrip,
+  issueToken,
   requireRole,
   scopedZone,
 } from "./auth.js";
@@ -61,12 +62,18 @@ export function createAdminApp(store) {
       throw unauthorized("Usuario o contraseña incorrectos.");
     }
     res.json({
-      token: store.createSession(user),
+      token: issueToken(user),
       user: { id: user.id, name: user.name, role: user.role, zone: user.zone },
     });
   });
 
-  api.use(authenticate(store));
+  // Spring Security answers a missing, invalid or expired token with an empty
+  // 401 before any controller runs.
+  api.use(
+    authenticate(store, (res) =>
+      res.status(401).set("WWW-Authenticate", "Bearer").end(),
+    ),
+  );
   api.get("/zones", (req, res) => res.json(store.zones));
   registerSchools(api, store);
   registerStaff(api, store, "guides", "GUIDE");
@@ -219,7 +226,6 @@ function registerStaff(api, store, path, role) {
   api.delete(`/${path}/:id`, requireRole("MANAGER"), (req, res) => {
     const user = findPerson(req.params.id);
     user.active = false;
-    store.endSessions(user.id);
     for (const route of store.routes) {
       route.guides = route.guides.filter((guide) => guide.guideId !== user.id);
       if (

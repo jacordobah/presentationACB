@@ -16,6 +16,8 @@ services:
 
   mock-api:
     build: ./mock-api
+    environment:
+      ACB_JWT_SECRET: ${ACB_JWT_SECRET:-acb-dev-secret-change-me-0123456789abcdef}
     restart: unless-stopped
 
   tunnel:

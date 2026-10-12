@@ -18,7 +18,6 @@ export class Store {
   photos = new Map();
   positions = new Map();
   #geoTrips = new Map();
-  #sessions = new Map();
   #sequences = new Map();
 
   nextId(kind) {
@@ -146,22 +145,5 @@ export class Store {
 
   setPosition(position) {
     this.positions.set(position.userId, position);
-  }
-
-  createSession(user) {
-    const token = randomBytes(24).toString("hex");
-    this.#sessions.set(token, user.id);
-    return token;
-  }
-
-  sessionUser(token) {
-    const user = this.user(this.#sessions.get(token));
-    return user?.active ? user : undefined;
-  }
-
-  endSessions(userId) {
-    for (const [token, sessionUserId] of this.#sessions) {
-      if (sessionUserId === userId) this.#sessions.delete(token);
-    }
   }
 }
