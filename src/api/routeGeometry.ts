@@ -29,6 +29,8 @@ interface ImportResultDto {
   saved_points: number;
 }
 
+const MAX_KMZ_BYTES = 20 * 1024 * 1024;
+
 const toLatLng = ([lng, lat]: Position): LatLng => ({ lat, lng });
 
 // Documents imported without route_code and trip_code cannot be tied to a trip.
@@ -120,6 +122,12 @@ export async function importKmz(
   tripCode: TripCode,
   file: File,
 ) {
+  if (!file.name.toLowerCase().endsWith(".kmz")) {
+    throw new Error("El archivo debe tener la extensión .kmz.");
+  }
+  if (file.size > MAX_KMZ_BYTES) {
+    throw new Error("El archivo supera el tamaño máximo de 20 MB.");
+  }
   const form = new FormData();
   form.append("file", file);
   form.append("route_code", routeCode);
