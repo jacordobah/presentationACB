@@ -176,6 +176,7 @@ export interface Destination {
 }
 
 export interface TripGeometry {
+  geoRouteId: string;
   routeCode: string;
   tripCode: TripCode;
   name: string;

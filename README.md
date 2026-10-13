@@ -7,9 +7,10 @@ as a PWA, and from laptops.
 
 Nginx serves the build and proxies `/api/admin` to adminACB and `/api/geo` to geolocaACB.
 
-Route geometry comes from geolocaACB's `GET /routes` and `GET /meeting-points`, filtered by
-`route_code` and `trip_code`, which geolocaACB still has to store on each KMZ import. The app
-uses the latest import of each trip.
+Route geometry comes from geolocaACB's `GET /routes` and `GET /meeting-points`. geolocaACB stores
+no route or trip codes, so the line in each KMZ must be named after its trip: the route code and
+then the trip code, as in `MM01 541 Ruta hacia el colegio` or `MM01-542`. Lines named otherwise
+are ignored, and each trip uses its latest import with the meeting points of that import.
 
 ## Run with Docker
 

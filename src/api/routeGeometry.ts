@@ -8,8 +8,6 @@ type Position = [number, number];
 interface GeoDocumentDto {
   _id: string;
   import_id: string;
-  route_code?: string;
-  trip_code?: TripCode;
   name: string;
 }
 
@@ -22,6 +20,12 @@ interface MeetingPointDto extends GeoDocumentDto {
   location: { type: "Point"; coordinates: Position };
 }
 
+interface TripRoute {
+  routeCode: string;
+  tripCode: TripCode;
+  route: RouteDto;
+}
+
 interface ImportResultDto {
   message: string;
   import_id: string;
@@ -31,16 +35,23 @@ interface ImportResultDto {
 
 const MAX_KMZ_BYTES = 20 * 1024 * 1024;
 
+// The geo API stores no route or trip codes, so a line belongs to a trip when
+// its name starts with both, as in "MM01 541 Ruta al colegio" or "MM01-542".
+const TRIP_LINE_NAME = /^\s*([A-Z]{2}\d{2})[\s_-]*(541|542)(?!\d)/i;
+
 const toLatLng = ([lng, lat]: Position): LatLng => ({ lat, lng });
 
-// Documents imported without route_code and trip_code cannot be tied to a trip.
-const isTripRoute = (route: RouteDto): route is Required<RouteDto> =>
-  Boolean(route.route_code && route.trip_code);
+function tripFromLineName(name: string) {
+  const match = TRIP_LINE_NAME.exec(name);
+  return match
+    ? { routeCode: match[1].toUpperCase(), tripCode: match[2] as TripCode }
+    : null;
+}
 
 // The geo API stores the KMZ as it comes, so the meeting point codes, radii,
 // length and destination are derived here.
 function toTripGeometry(
-  route: Required<RouteDto>,
+  { routeCode, tripCode, route }: TripRoute,
   points: MeetingPointDto[],
   schoolName: string,
 ): TripGeometry {
@@ -55,8 +66,9 @@ function toTripGeometry(
   }));
   const lastPoint = meetingPoints[meetingPoints.length - 1];
   return {
-    routeCode: route.route_code,
-    tripCode: route.trip_code,
+    geoRouteId: route._id,
+    routeCode,
+    tripCode,
     name: route.name,
     lengthM: Math.round(lineLength(line)),
     line,
@@ -64,7 +76,7 @@ function toTripGeometry(
     // A 541 trip ends at the school, where its line ends; a 542 trip ends at
     // its last meeting point.
     destination:
-      route.trip_code === "541"
+      tripCode === "541"
         ? {
             name: schoolName,
             radiusM: DESTINATION_RADIUS_M,
@@ -85,28 +97,35 @@ interface GeometryFilters {
 }
 
 // Every upload is a new import and the earlier ones stay stored, so each trip
-// uses only its latest line, the one with the greatest ObjectId.
+// uses only its latest line, the one with the greatest ObjectId. Imports
+// without meeting points are skipped, since a trip starts at its PE01.
 export async function listTripGeometries(
   filters: GeometryFilters = {},
   schoolName?: string | null,
 ) {
-  const query = { route_code: filters.routeCode, trip_code: filters.tripCode };
   const [routes, points] = await Promise.all([
-    request<RouteDto[]>("geo", "routes", { query }),
-    request<MeetingPointDto[]>("geo", "meeting-points", { query }),
+    request<RouteDto[]>("geo", "routes"),
+    request<MeetingPointDto[]>("geo", "meeting-points"),
   ]);
-  const latest = new Map<string, Required<RouteDto>>();
-  for (const route of routes.filter(isTripRoute)) {
-    if (filters.zone && !route.route_code.startsWith(filters.zone)) continue;
-    const key = `${route.route_code}:${route.trip_code}`;
+  const importsWithPoints = new Set(points.map((point) => point.import_id));
+  const latest = new Map<string, TripRoute>();
+  for (const route of routes) {
+    const trip = tripFromLineName(route.name);
+    if (!trip || !importsWithPoints.has(route.import_id)) continue;
+    if (filters.routeCode && trip.routeCode !== filters.routeCode) continue;
+    if (filters.tripCode && trip.tripCode !== filters.tripCode) continue;
+    if (filters.zone && !trip.routeCode.startsWith(filters.zone)) continue;
+    const key = `${trip.routeCode}:${trip.tripCode}`;
     const current = latest.get(key);
-    if (!current || route._id > current._id) latest.set(key, route);
+    if (!current || route._id > current.route._id) {
+      latest.set(key, { ...trip, route });
+    }
   }
   return [...latest.values()]
-    .map((route) =>
+    .map((trip) =>
       toTripGeometry(
-        route,
-        points.filter((point) => point.import_id === route.import_id),
+        trip,
+        points.filter((point) => point.import_id === trip.route.import_id),
         schoolName ?? "Colegio",
       ),
     )
