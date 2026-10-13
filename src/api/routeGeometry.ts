@@ -1,7 +1,14 @@
 import { lineLength } from "../lib/geo";
 import { DESTINATION_RADIUS_M, MEETING_POINT_RADIUS_M } from "../lib/rules";
 import { ApiError, request } from "./http";
-import type { LatLng, TripCode, TripGeometry } from "./types";
+import type {
+  GeofenceReason,
+  GeofenceStatus,
+  LatLng,
+  MeetingPointValidation,
+  TripCode,
+  TripGeometry,
+} from "./types";
 
 type Position = [number, number];
 
@@ -33,6 +40,24 @@ interface ImportResultDto {
   saved_points: number;
 }
 
+interface ValidationDto {
+  distance_m: number;
+  radius_m: number;
+  status: GeofenceStatus;
+  quality: {
+    accuracy_m: number | null;
+    max_accuracy_m: number;
+    reason: GeofenceReason;
+  };
+}
+
+export interface LocationInput {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  capturedAt: string;
+}
+
 const MAX_KMZ_BYTES = 20 * 1024 * 1024;
 
 // The geo API explains why an import failed in English, so the guide gets one
@@ -42,6 +67,23 @@ const IMPORT_ERRORS: Record<number, string> = {
   413: "El archivo supera el tamaño máximo de 20 MB.",
   422: "No se pudo leer el KMZ. Revisa que tenga la línea del recorrido y sus puntos de encuentro.",
   503: "El servicio de geolocalización no pudo guardar el archivo. Intenta de nuevo.",
+};
+
+const VALIDATION_ERRORS: Record<string, string> = {
+  invalid_identifier:
+    "El servicio de geolocalización no reconoce el trazado de esta ruta.",
+  route_not_found:
+    "El trazado de esta ruta ya no está en el servicio de geolocalización.",
+  first_meeting_point_not_configured:
+    "El PE01 de esta ruta aún no está configurado en el servicio de geolocalización.",
+  referenced_meeting_point_not_found:
+    "El PE01 configurado para esta ruta ya no está en el servicio de geolocalización.",
+  invalid_geographic_association:
+    "El PE01 configurado no corresponde al trazado de esta ruta en el servicio de geolocalización.",
+  geofence_configuration_unavailable:
+    "La validación de llegada al PE01 no está configurada en el servicio de geolocalización.",
+  geographic_store_unavailable:
+    "El servicio de geolocalización no pudo consultar el PE01. Intenta de nuevo en unos minutos.",
 };
 
 // The geo API stores no route or trip codes, so a line belongs to a trip when
@@ -178,4 +220,46 @@ export async function importKmz(
     return trip?.routeCode === routeCode && trip.tripCode === tripCode;
   });
   return { linked };
+}
+
+// The geo API decides whether a position counts as an arrival at the PE01 of a
+// trip, with its own radius and limit on the GPS accuracy.
+export async function validateFirstMeetingPoint(
+  geoRouteId: string,
+  input: LocationInput,
+): Promise<MeetingPointValidation> {
+  const result = await request<ValidationDto>(
+    "geo",
+    `routes/${geoRouteId}/first-meeting-point/validate`,
+    {
+      method: "POST",
+      body: {
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracy_m: input.accuracy,
+        captured_at: input.capturedAt,
+      },
+    },
+  ).catch((error: unknown) => {
+    if (
+      error instanceof ApiError &&
+      error.code &&
+      VALIDATION_ERRORS[error.code]
+    ) {
+      throw new ApiError(
+        error.status,
+        VALIDATION_ERRORS[error.code],
+        error.code,
+      );
+    }
+    throw error;
+  });
+  return {
+    status: result.status,
+    reason: result.quality.reason,
+    distanceM: result.distance_m,
+    radiusM: result.radius_m,
+    accuracyM: result.quality.accuracy_m,
+    maxAccuracyM: result.quality.max_accuracy_m,
+  };
 }

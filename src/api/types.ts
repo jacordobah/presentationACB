@@ -12,6 +12,13 @@ export type ArrivalType = "NON_IMPACT" | "IMPACT";
 export type ArrivalStatus = "PENDING" | "NOTIFIED" | "OPEN" | "MINUTED";
 export type ArrivalAction = "VERBAL" | "WRITTEN" | "REQUIREMENT";
 export type Punctuality = "ON_TIME" | "LATE_NO_IMPACT" | "LATE_IMPACT";
+export type GeofenceStatus = "inside" | "outside" | "indeterminate";
+export type GeofenceReason =
+  | "accuracy_missing"
+  | "accuracy_exceeds_limit"
+  | "uncertainty_within_radius"
+  | "uncertainty_outside_radius"
+  | "boundary_uncertainty";
 
 export interface LatLng {
   lat: number;
@@ -184,6 +191,15 @@ export interface TripGeometry {
   line: LatLng[];
   meetingPoints: MeetingPoint[];
   destination: Destination;
+}
+
+export interface MeetingPointValidation {
+  status: GeofenceStatus;
+  reason: GeofenceReason;
+  distanceM: number;
+  radiusM: number;
+  accuracyM: number | null;
+  maxAccuracyM: number;
 }
 
 export interface CodeReport {

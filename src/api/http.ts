@@ -18,11 +18,13 @@ const GEO_UPSTREAM_PREFIX = "/api/v1/";
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: string | undefined;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -63,21 +65,31 @@ function fallbackMessage(status: number) {
 
 // Admin errors come as { message } (Spring) and geo errors as { detail }
 // (FastAPI), where a FastAPI validation error carries a list of issues instead
-// of a string.
-async function readErrorMessage(response: Response) {
+// of a string, and the newer geo endpoints an object with a code that callers
+// map to their own messages.
+async function readError(response: Response) {
+  const { status } = response;
   const body: unknown = await response.json().catch(() => null);
   if (body && typeof body === "object") {
     const { message, detail } = body as { message?: unknown; detail?: unknown };
-    if (typeof message === "string") return message;
-    if (typeof detail === "string") return detail;
+    if (typeof message === "string") return new ApiError(status, message);
+    if (typeof detail === "string") return new ApiError(status, detail);
     if (Array.isArray(detail)) {
       const issues = detail
         .map((issue: { msg?: unknown }) => issue?.msg)
         .filter((msg): msg is string => typeof msg === "string");
-      if (issues.length > 0) return issues.join(" ");
+      if (issues.length > 0) return new ApiError(status, issues.join(" "));
+    }
+    if (
+      detail &&
+      typeof detail === "object" &&
+      "code" in detail &&
+      typeof detail.code === "string"
+    ) {
+      return new ApiError(status, fallbackMessage(status), detail.code);
     }
   }
-  return fallbackMessage(response.status);
+  return new ApiError(status, fallbackMessage(status));
 }
 
 function authorizationHeader(): Record<string, string> {
@@ -95,9 +107,7 @@ async function send(url: string, init: RequestInit, authenticated: boolean) {
     );
   }
   if (response.status === 401 && authenticated) handleUnauthorized();
-  if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response));
-  }
+  if (!response.ok) throw await readError(response);
   return response;
 }
 

@@ -1,11 +1,12 @@
-import { Camera, CircleCheck, Circle, Play } from "lucide-react";
-import { useRef, useState, type ChangeEvent } from "react";
+import { CircleCheck, Circle, MapPinCheck, Play } from "lucide-react";
+import { useState } from "react";
 import { reportCode } from "../../../api/codes";
-import { uploadPhoto } from "../../../api/photos";
+import { validateFirstMeetingPoint } from "../../../api/routeGeometry";
 import { startTrip } from "../../../api/trips";
 import type {
   ArrivalResult,
   CodeReport,
+  MeetingPointValidation,
   Trip,
   TripGeometry,
 } from "../../../api/types";
@@ -97,6 +98,24 @@ function ArrivalRoster({
   );
 }
 
+// Why the geo API did not take the position as an arrival at the point.
+function refusalMessage(validation: MeetingPointValidation, pointCode: string) {
+  if (validation.status === "outside") {
+    return `Estás a ${formatDistance(validation.distanceM)} del ${pointCode}; el radio permitido es ${formatDistance(validation.radiusM)}.`;
+  }
+  if (
+    validation.reason === "accuracy_missing" ||
+    validation.reason === "accuracy_exceeds_limit"
+  ) {
+    const accuracy =
+      validation.accuracyM === null
+        ? ""
+        : ` (±${formatDistance(validation.accuracyM)})`;
+    return `La precisión del GPS${accuracy} supera el máximo permitido de ±${formatDistance(validation.maxAccuracyM)}. Espera a tener mejor señal e intenta de nuevo.`;
+  }
+  return `Estás muy cerca del borde del área del ${pointCode} y no se puede confirmar tu llegada. Acércate más al punto e intenta de nuevo.`;
+}
+
 interface BeforeStartProps {
   trip: Trip;
   geometry: TripGeometry;
@@ -122,8 +141,8 @@ export function BeforeStart({
 }: BeforeStartProps) {
   const user = useSessionUser();
   const toast = useToast();
-  const cameraRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"arrival" | "start" | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const firstPoint = geometry.meetingPoints[0];
   const distance = fix ? distanceMeters(fix, firstPoint.location) : null;
   const insideFirstPoint = distance !== null && distance <= firstPoint.radiusM;
@@ -135,24 +154,28 @@ export function BeforeStart({
     new Set(arrivals.map((report) => report.userId)).size >=
     trip.requiredGuides;
 
-  const handleSelfie = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !fix) return;
+  const handleArrival = async () => {
+    if (!fix) return;
     setBusy("arrival");
+    setRefusal(null);
     try {
-      const context = {
-        userId: user.id,
-        routeCode: trip.routeCode,
-        tripCode: trip.tripCode,
-      };
-      const photoId = await uploadPhoto(file, { ...context, code: "523" });
+      const validation = await validateFirstMeetingPoint(geometry.geoRouteId, {
+        latitude: fix.lat,
+        longitude: fix.lng,
+        accuracy: fix.accuracy,
+        capturedAt: new Date(fix.timestamp).toISOString(),
+      });
+      if (validation.status !== "inside") {
+        setRefusal(refusalMessage(validation, firstPoint.code));
+        return;
+      }
       const { arrival } = await reportCode({
-        ...context,
         code: "523",
         label: CODES["523"].label,
+        routeCode: trip.routeCode,
+        tripCode: trip.tripCode,
+        userId: user.id,
         location: fix,
-        photoId,
       });
       if (arrival) tripProgress.recordArrival(trip.id, arrival);
       toast.show("Llegada reportada.", { tone: "success" });
@@ -240,34 +263,18 @@ export function BeforeStart({
         </Notice>
       ) : !myArrival ? (
         <div className="stack">
-          {distance !== null && !insideFirstPoint && (
-            <p className="field__error">
-              Estás a {formatDistance(distance)} del {firstPoint.code}. Acércate
-              al punto para reportar tu llegada.
-            </p>
-          )}
+          {refusal && <p className="field__error">{refusal}</p>}
           <button
             type="button"
             className="button button--primary button--large button--block"
-            disabled={!insideFirstPoint || busy !== null}
-            onClick={() => cameraRef.current?.click()}
+            disabled={!fix || busy !== null}
+            onClick={handleArrival}
           >
-            <Camera size={24} aria-hidden="true" />
+            <MapPinCheck size={24} aria-hidden="true" />
             {busy === "arrival"
               ? "Enviando llegada…"
               : "Reportar llegada (523)"}
           </button>
-          <p className="field__hint">
-            Se abre la cámara frontal para tomar tu selfie.
-          </p>
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="user"
-            hidden
-            onChange={handleSelfie}
-          />
         </div>
       ) : (
         <div className="stack">
