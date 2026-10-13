@@ -39,8 +39,8 @@ export function clearActiveTrip(tripId: number) {
   if (activeTrip?.tripId === tripId) setActiveTrip(null);
 }
 
-// The trip in progress on this device, kept across reloads so positions keep
-// flowing.
+// The trip in progress on this device, kept across reloads so the screen stays
+// on until it ends.
 export function useActiveTrip(userId: number) {
   const trip = useSyncExternalStore(subscribe, () => activeTrip);
   return trip?.userId === userId && trip.date === todayInBogota() ? trip : null;

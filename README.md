@@ -64,15 +64,14 @@ publish on the host, 8080 and 8000, like Nginx does. `npm run lint`, `npm run bu
 
 ## Environment variables
 
-| Variable                    | Default                   | Purpose                                                  |
-| --------------------------- | ------------------------- | -------------------------------------------------------- |
-| `HTTPS_PORT`                | `8443`                    | Host port for HTTPS.                                     |
-| `HTTP_PORT`                 | `8088`                    | Host port for HTTP, used by the tunnel.                  |
-| `VITE_LOCATION_SIMULATOR`   | `true` in Docker          | Includes the location simulator in the build.            |
-| `VITE_POSITION_INTERVAL_MS` | `5000`                    | How often a device on an active trip sends its position. |
-| `VITE_POLL_INTERVAL_MS`     | `5000`                    | Refresh interval of the live maps.                       |
-| `ADMIN_API_URL`             | `http://admin-api:8080`   | Nginx upstream for `/api/admin`.                         |
-| `GEO_API_URL`               | `http://geoloca-api:8000` | Nginx upstream for `/api/geo`.                           |
+| Variable                  | Default                   | Purpose                                       |
+| ------------------------- | ------------------------- | --------------------------------------------- |
+| `HTTPS_PORT`              | `8443`                    | Host port for HTTPS.                          |
+| `HTTP_PORT`               | `8088`                    | Host port for HTTP, used by the tunnel.       |
+| `VITE_LOCATION_SIMULATOR` | `true` in Docker          | Includes the location simulator in the build. |
+| `VITE_POLL_INTERVAL_MS`   | `5000`                    | Refresh interval of the live maps.            |
+| `ADMIN_API_URL`           | `http://admin-api:8080`   | Nginx upstream for `/api/admin`.              |
+| `GEO_API_URL`             | `http://geoloca-api:8000` | Nginx upstream for `/api/geo`.                |
 
 `VITE_*` values are read at build time, so changing them needs `--build`. The trip screen
 includes a location simulator to operate a trip away from the route.

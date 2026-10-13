@@ -107,8 +107,8 @@ function TripOperation({
     ? "/guide"
     : `/leader/routes/${trip.routeCode}?tab=today`;
 
-  // Any operator's device keeps sending positions while the trip runs, also
-  // after a reload or when another guide pressed start.
+  // Any operator's device keeps its screen on while the trip runs, also after a
+  // reload or when another guide pressed start.
   useEffect(() => {
     if (trip.status === "IN_PROGRESS" && canOperate) {
       setActiveTrip({

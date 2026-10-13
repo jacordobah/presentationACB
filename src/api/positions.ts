@@ -11,31 +11,6 @@ interface LatestPositionDto {
   recorded_at: string;
 }
 
-export interface PositionInput {
-  userId: number;
-  routeCode: string;
-  tripCode: TripCode;
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  recordedAt: string;
-}
-
-export function sendPosition(input: PositionInput) {
-  return request<void>("geo", "positions", {
-    method: "POST",
-    body: {
-      user_id: String(input.userId),
-      route: input.routeCode,
-      trip_code: input.tripCode,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      accuracy: input.accuracy,
-      recorded_at: input.recordedAt,
-    },
-  });
-}
-
 export async function listLatestPositions(zone?: string | null) {
   const positions = await request<LatestPositionDto[]>(
     "geo",
