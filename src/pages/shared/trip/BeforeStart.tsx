@@ -173,9 +173,7 @@ export function BeforeStart({
         code: "523",
         label: CODES["523"].label,
         routeCode: trip.routeCode,
-        tripCode: trip.tripCode,
         userId: user.id,
-        location: fix,
       });
       if (arrival) tripProgress.recordArrival(trip.id, arrival);
       toast.show("Llegada reportada.", { tone: "success" });
@@ -188,7 +186,6 @@ export function BeforeStart({
   };
 
   const handleStart = async () => {
-    if (!fix) return;
     setBusy("start");
     try {
       if (!progress.startReported) {
@@ -196,9 +193,7 @@ export function BeforeStart({
           code: trip.tripCode,
           label: CODES[trip.tripCode].label,
           routeCode: trip.routeCode,
-          tripCode: trip.tripCode,
           userId: user.id,
-          location: fix,
         });
         tripProgress.markStartReported(trip.id);
       }
@@ -286,7 +281,7 @@ export function BeforeStart({
           <button
             type="button"
             className="button button--primary button--large button--block"
-            disabled={!enoughArrivals || busy !== null || !fix}
+            disabled={!enoughArrivals || busy !== null}
             onClick={handleStart}
           >
             <Play size={24} aria-hidden="true" />

@@ -227,7 +227,6 @@ function TripOperation({
           open={reporting}
           onClose={() => setReporting(false)}
           trip={trip}
-          fix={fix}
         />
       )}
     </div>

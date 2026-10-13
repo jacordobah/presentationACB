@@ -2,7 +2,6 @@ import { geoPublicUrl, request } from "./http";
 import type {
   ArrivalResult,
   CodeReport,
-  LatLng,
   OperationalCode,
   TripCode,
 } from "./types";
@@ -35,11 +34,7 @@ export interface CodeReportInput {
   code: OperationalCode;
   label: string;
   routeCode: string;
-  tripCode: TripCode;
   userId: number;
-  location: LatLng;
-  detail?: string;
-  photoId?: string;
 }
 
 function toCodeReport(dto: CodeReportDto): CodeReport {
@@ -64,14 +59,9 @@ export async function reportCode(input: CodeReportInput) {
     body: {
       name: input.label,
       route: input.routeCode,
-      trip_code: input.tripCode,
       status: input.code,
       user_id: String(input.userId),
       notified_at: new Date().toISOString(),
-      latitude: input.location.lat,
-      longitude: input.location.lng,
-      detail: input.detail,
-      photo_id: input.photoId,
     },
   });
   const arrival: ArrivalResult | null = response.arrival

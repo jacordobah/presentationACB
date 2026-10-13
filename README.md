@@ -57,10 +57,10 @@ publish on the host, 8080 and 8000, like Nginx does. `npm run lint`, `npm run bu
 ## Open it from an Android phone
 
 - **Tunnel:** start the `tunnel` profile and open its URL in Chrome. The certificate is trusted,
-  so location, the camera and installing the app all work.
+  so location and installing the app both work.
 - **Local network:** with the phone and the laptop on the same Wi-Fi, open
-  `https://<laptop-LAN-IP>:8443` and accept the certificate warning. Location and the camera
-  work, but installing the PWA needs the tunnel or a real certificate.
+  `https://<laptop-LAN-IP>:8443` and accept the certificate warning. Location works, but
+  installing the PWA needs the tunnel or a real certificate.
 
 ## Environment variables
 

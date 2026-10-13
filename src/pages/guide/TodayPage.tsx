@@ -8,7 +8,6 @@ import type { CodeReport, OperationalCode, Trip } from "../../api/types";
 import { useSessionUser } from "../../auth/AuthContext";
 import { AsyncContent } from "../../components/AsyncContent";
 import { TripStatusChip } from "../../components/Chips";
-import { LocationNotice } from "../../components/LocationNotice";
 import { Notice } from "../../components/Notice";
 import { EmptyState } from "../../components/States";
 import { errorMessage, useToast } from "../../components/toast/ToastContext";
@@ -18,7 +17,6 @@ import { LIST_POLL_MS } from "../../lib/config";
 import { formatLongDate, formatTime, todayInBogota } from "../../lib/dates";
 import { TRIP_LABELS, plural } from "../../lib/labels";
 import { TRIP_ROW_TONES } from "../../lib/tones";
-import { useDeviceLocation } from "../../location/LocationContext";
 
 const OPEN_LABELS = {
   SCHEDULED: "Abrir recorrido",
@@ -74,7 +72,6 @@ function DayClosing({
 }) {
   const user = useSessionUser();
   const toast = useToast();
-  const { fix, status } = useDeviceLocation();
   const [sending, setSending] = useState(false);
   const mine = codes.filter((report) => report.userId === user.id);
   const reported = (code: OperationalCode) =>
@@ -89,16 +86,14 @@ function DayClosing({
     .at(-1);
 
   const report = async (code: OperationalCode) => {
-    if (!fix || !lastTrip) return;
+    if (!lastTrip) return;
     setSending(true);
     try {
       await reportCode({
         code,
         label: CODES[code].label,
         routeCode: lastTrip.routeCode,
-        tripCode: lastTrip.tripCode,
         userId: user.id,
-        location: fix,
       });
       toast.show(
         code === "524"
@@ -130,11 +125,10 @@ function DayClosing({
               ? "Terminaste todos tus recorridos de hoy."
               : "Reportaste misión cumplida. Avisa cuando quedes disponible."}
           </p>
-          {status !== "ready" && <LocationNotice status={status} />}
           <button
             type="button"
             className="button button--primary button--large button--block"
-            disabled={sending || !fix}
+            disabled={sending}
             onClick={() => report(next)}
           >
             {next === "524"
