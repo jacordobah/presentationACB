@@ -113,6 +113,7 @@ function KmzUpload({
   const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unlinked, setUnlinked] = useState(false);
   const [uploading, setUploading] = useState(false);
   const locked = route.status === "IN_REVIEW";
 
@@ -120,9 +121,15 @@ function KmzUpload({
     if (!file) return;
     setUploading(true);
     setError(null);
+    setUnlinked(false);
     try {
-      await importKmz(route.code, tripCode, file);
-      toast.show(`KMZ del recorrido ${tripCode} cargado.`, { tone: "success" });
+      const { linked } = await importKmz(route.code, tripCode, file);
+      if (linked) {
+        toast.show(`KMZ del recorrido ${tripCode} cargado.`, {
+          tone: "success",
+        });
+      }
+      setUnlinked(!linked);
       setFile(null);
       onUploaded();
     } catch (caught) {
@@ -148,6 +155,13 @@ function KmzUpload({
         )}
       </div>
       {error && <Notice tone="error">{error}</Notice>}
+      {unlinked && (
+        <Notice tone="warning">
+          El archivo se importó, pero ninguna línea se llama «{route.code}{" "}
+          {tripCode}…», así que no quedará asociado a este recorrido. Renombra
+          la línea en el KMZ y súbelo de nuevo.
+        </Notice>
+      )}
       {!locked && (
         <div className="cluster">
           <label className="button file-button">

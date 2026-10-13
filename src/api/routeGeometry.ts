@@ -1,6 +1,6 @@
 import { lineLength } from "../lib/geo";
 import { DESTINATION_RADIUS_M, MEETING_POINT_RADIUS_M } from "../lib/rules";
-import { request } from "./http";
+import { ApiError, request } from "./http";
 import type { LatLng, TripCode, TripGeometry } from "./types";
 
 type Position = [number, number];
@@ -34,6 +34,15 @@ interface ImportResultDto {
 }
 
 const MAX_KMZ_BYTES = 20 * 1024 * 1024;
+
+// The geo API explains why an import failed in English, so the guide gets one
+// of these messages by status instead.
+const IMPORT_ERRORS: Record<number, string> = {
+  400: "El archivo debe ser un KMZ y no puede estar vacío.",
+  413: "El archivo supera el tamaño máximo de 20 MB.",
+  422: "No se pudo leer el KMZ. Revisa que tenga la línea del recorrido y sus puntos de encuentro.",
+  503: "El servicio de geolocalización no pudo guardar el archivo. Intenta de nuevo.",
+};
 
 // The geo API stores no route or trip codes, so a line belongs to a trip when
 // its name starts with both, as in "MM01 541 Ruta al colegio" or "MM01-542".
@@ -136,6 +145,9 @@ export async function listTripGeometries(
     );
 }
 
+// Reports whether one of the imported lines is named after the trip, which is
+// what ties the import to it. The geo API cannot delete imports, so one that is
+// not tied stays stored.
 export async function importKmz(
   routeCode: string,
   tripCode: TripCode,
@@ -149,11 +161,21 @@ export async function importKmz(
   }
   const form = new FormData();
   form.append("file", file);
-  form.append("route_code", routeCode);
-  form.append("trip_code", tripCode);
   const result = await request<ImportResultDto>("geo", "imports/kmz", {
     method: "POST",
     form,
+  }).catch((error: unknown) => {
+    if (error instanceof ApiError && IMPORT_ERRORS[error.status]) {
+      throw new ApiError(error.status, IMPORT_ERRORS[error.status]);
+    }
+    throw error;
   });
-  return { message: result.message, savedPoints: result.saved_points };
+  const routes = await request<RouteDto[]>("geo", "routes", {
+    query: { import_id: result.import_id },
+  });
+  const linked = routes.some((route) => {
+    const trip = tripFromLineName(route.name);
+    return trip?.routeCode === routeCode && trip.tripCode === tripCode;
+  });
+  return { linked };
 }
