@@ -10,14 +10,11 @@ services:
       - "${HTTPS_PORT:-8443}:443"
       - "${HTTP_PORT:-8088}:80"
     environment:
-      ADMIN_API_URL: ${ADMIN_API_URL:-http://mock-api:4001}
-      GEO_API_URL: ${GEO_API_URL:-http://mock-api:4002}
-    restart: unless-stopped
-
-  mock-api:
-    build: ./mock-api
-    environment:
-      ACB_JWT_SECRET: ${ACB_JWT_SECRET:-acb-dev-secret-change-me-0123456789abcdef}
+      ADMIN_API_URL: ${ADMIN_API_URL:-http://admin-api:8080}
+      GEO_API_URL: ${GEO_API_URL:-http://geoloca-api:8000}
+    networks:
+      - default
+      - acb-net
     restart: unless-stopped
 
   tunnel:
@@ -27,3 +24,8 @@ services:
     depends_on:
       - web
     restart: unless-stopped
+
+networks:
+  acb-net:
+    external: true
+    name: acb-net

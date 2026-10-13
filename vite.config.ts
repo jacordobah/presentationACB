@@ -2,8 +2,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-// Mirrors the Nginx rewrites so `npm run dev` talks to the mock API the same
-// way the container does.
+// Mirrors the Nginx rewrites so `npm run dev` talks to adminACB and geolocaACB,
+// on the ports they publish on the host, the same way the container does.
 const apiProxy = (target: string, prefix: string) => ({
   target,
   rewrite: (path: string) => path.replace(prefix, "/api/v1"),
@@ -48,8 +48,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      "/api/admin": apiProxy("http://localhost:4001", "/api/admin"),
-      "/api/geo": apiProxy("http://localhost:4002", "/api/geo"),
+      "/api/admin": apiProxy("http://localhost:8080", "/api/admin"),
+      "/api/geo": apiProxy("http://localhost:8000", "/api/geo"),
     },
   },
 });

@@ -3,5 +3,4 @@
 node_modules
 dist
 dev-dist
-mock-api
 *.log
