@@ -20,8 +20,9 @@ The app and both backends share the `acb-net` network. Create it once:
 docker network create acb-net
 ```
 
-Start adminACB and geolocaACB from their repositories; they join `acb-net` with the aliases
-`admin-api` and `geoloca-api`. Then, from this one:
+Start adminACB, the API gateway (`gatewayACB`) and geolocaACB from their repositories. The gateway
+joins `acb-net` as `api-gateway` and reaches adminACB through the host; geolocaACB joins with the
+alias `geoloca-api`. Then, from this one:
 
 ```sh
 cp .env.example .env
@@ -70,7 +71,7 @@ publish on the host, 8080 and 8000, like Nginx does. `npm run lint`, `npm run bu
 | `HTTP_PORT`               | `8088`                    | Host port for HTTP, used by the tunnel.       |
 | `VITE_LOCATION_SIMULATOR` | `true` in Docker          | Includes the location simulator in the build. |
 | `VITE_POLL_INTERVAL_MS`   | `5000`                    | Refresh interval of the live maps.            |
-| `ADMIN_API_URL`           | `http://admin-api:8080`   | Nginx upstream for `/api/admin`.              |
+| `ADMIN_API_URL`           | `http://api-gateway:5062` | Nginx upstream for `/api/admin`.              |
 | `GEO_API_URL`             | `http://geoloca-api:8000` | Nginx upstream for `/api/geo`.                |
 
 `VITE_*` values are read at build time, so changing them needs `--build`. The trip screen
