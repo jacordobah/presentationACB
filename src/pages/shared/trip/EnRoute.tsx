@@ -9,13 +9,18 @@ import type {
 } from "../../../api/types";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { LocationNotice } from "../../../components/LocationNotice";
+import { Notice } from "../../../components/Notice";
 import { errorMessage, useToast } from "../../../components/toast/ToastContext";
 import { useNow } from "../../../hooks/useNow";
+import { ESTIMATED_SPEED_KMH } from "../../../lib/config";
 import { formatCountdown, formatTime } from "../../../lib/dates";
+import { estimateArrival } from "../../../lib/eta";
 import { distanceMeters, formatDistance } from "../../../lib/geo";
 import { plural } from "../../../lib/labels";
 import { clearActiveTrip } from "../../../location/activeTrip";
 import type { Fix, LocationStatus } from "../../../location/LocationContext";
+import { finishTracking } from "../../../tracking/finishTracking";
+import { useTracking } from "../../../tracking/TrackingContext";
 import { PointPanel } from "./PointPanel";
 import { tripProgress, type TripProgress } from "./tripProgress";
 
@@ -101,6 +106,7 @@ export function EnRoute({
   onFinished,
 }: EnRouteProps) {
   const toast = useToast();
+  const tracking = useTracking();
   const now = useNow(1000);
   const [confirming, setConfirming] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -116,6 +122,10 @@ export function EnRoute({
     : null;
   const atDestination =
     destinationDistance !== null && destinationDistance <= destination.radiusM;
+  const eta =
+    fix && !atDestination
+      ? estimateArrival(geometry.line, fix, ESTIMATED_SPEED_KMH)
+      : null;
 
   // Entering the geofence of a pending meeting point starts its wait timer.
   useEffect(() => {
@@ -131,6 +141,7 @@ export function EnRoute({
     setFinishing(true);
     try {
       const summary = await finishTrip(trip.id);
+      void finishTracking(trip.id).catch(() => undefined);
       tripProgress.finish(trip.id, summary);
       clearActiveTrip(trip.id);
       toast.show("Recorrido finalizado.", { tone: "success" });
@@ -145,6 +156,25 @@ export function EnRoute({
   return (
     <div className="trip-panel__content">
       <LocationNotice status={locationStatus} />
+      {tracking.message && tracking.status !== "active" && (
+        <Notice tone={tracking.status === "error" ? "warning" : "info"}>
+          {tracking.message}
+        </Notice>
+      )}
+      <dl className="facts facts--large">
+        {trip.startedAt && (
+          <div>
+            <dt>Salida</dt>
+            <dd>{formatTime(trip.startedAt)}</dd>
+          </div>
+        )}
+        {eta && (
+          <div>
+            <dt>Llegada estimada</dt>
+            <dd>{formatTime(eta.eta.getTime())}</dd>
+          </div>
+        )}
+      </dl>
       {canOperate && focus && (
         <PointPanel
           key={focus.code}

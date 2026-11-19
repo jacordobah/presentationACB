@@ -19,6 +19,8 @@ interface GeoDocumentDto {
 }
 
 interface RouteDto extends GeoDocumentDto {
+  route_code?: string | null;
+  code?: string | null;
   geometry: { type: "LineString"; coordinates: Position[] };
 }
 
@@ -86,17 +88,23 @@ const VALIDATION_ERRORS: Record<string, string> = {
     "El servicio de geolocalización no pudo consultar el PE01. Intenta de nuevo en unos minutos.",
 };
 
-// The geo API stores no route or trip codes, so a line belongs to a trip when
-// its name starts with both, as in "MM01 541 Ruta al colegio" or "MM01-542".
+// geoloca stores route_code and code as separate fields. Older imports only
+// encoded the trip in the line name, as in "MM01 541 Ruta al colegio".
 const TRIP_LINE_NAME = /^\s*([A-Z]{2}\d{2})[\s_-]*(541|542)(?!\d)/i;
 
 const toLatLng = ([lng, lat]: Position): LatLng => ({ lat, lng });
 
-function tripFromLineName(name: string) {
-  const match = TRIP_LINE_NAME.exec(name);
-  return match
-    ? { routeCode: match[1].toUpperCase(), tripCode: match[2] as TripCode }
-    : null;
+export function tripCodesFromRoute(route: {
+  name: string;
+  route_code?: string | null;
+  code?: string | null;
+}) {
+  const named = TRIP_LINE_NAME.exec(route.name);
+  const routeCode = (route.route_code ?? named?.[1] ?? "").trim().toUpperCase();
+  const rawTripCode = (route.code ?? named?.[2] ?? "").trim();
+  if (!/^[A-Z]{2}\d{2}$/.test(routeCode)) return null;
+  if (rawTripCode !== "541" && rawTripCode !== "542") return null;
+  return { routeCode, tripCode: rawTripCode as TripCode };
 }
 
 // The geo API stores the KMZ as it comes, so the meeting point codes, radii,
@@ -161,7 +169,7 @@ export async function listTripGeometries(
   const importsWithPoints = new Set(points.map((point) => point.import_id));
   const latest = new Map<string, TripRoute>();
   for (const route of routes) {
-    const trip = tripFromLineName(route.name);
+    const trip = tripCodesFromRoute(route);
     if (!trip || !importsWithPoints.has(route.import_id)) continue;
     if (filters.routeCode && trip.routeCode !== filters.routeCode) continue;
     if (filters.tripCode && trip.tripCode !== filters.tripCode) continue;
@@ -216,7 +224,7 @@ export async function importKmz(
     query: { import_id: result.import_id },
   });
   const linked = routes.some((route) => {
-    const trip = tripFromLineName(route.name);
+    const trip = tripCodesFromRoute(route);
     return trip?.routeCode === routeCode && trip.tripCode === tripCode;
   });
   return { linked };

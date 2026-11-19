@@ -7,6 +7,11 @@ interface RequestOptions {
   body?: unknown;
   form?: FormData;
   authenticated?: boolean;
+  headers?: Record<string, string>;
+  // The GPS observation credential is a per-session Bearer, not the app JWT.
+  bearer?: string | null;
+  // A GPS-service 401 must not sign the guide out of a valid app session.
+  notifyUnauthorized?: boolean;
 }
 
 const BASE_PATHS: Record<Service, string> = {
@@ -110,7 +115,12 @@ function authorizationHeader(): Record<string, string> {
   return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
 }
 
-async function send(url: string, init: RequestInit, authenticated: boolean) {
+async function send(
+  url: string,
+  init: RequestInit,
+  authenticated: boolean,
+  notifyUnauthorized = true,
+) {
   let response: Response;
   try {
     response = await fetch(url, init);
@@ -120,7 +130,9 @@ async function send(url: string, init: RequestInit, authenticated: boolean) {
       "No hay conexión con el servidor. Revisa tu conexión a internet e intenta de nuevo.",
     );
   }
-  if (response.status === 401 && authenticated) handleUnauthorized();
+  if (response.status === 401 && authenticated && notifyUnauthorized) {
+    handleUnauthorized();
+  }
   if (!response.ok) throw await readError(response);
   return response;
 }
@@ -133,7 +145,12 @@ export async function request<T>(
   const authenticated = options.authenticated ?? true;
   const headers: Record<string, string> = {
     Accept: "application/json",
-    ...(authenticated ? authorizationHeader() : {}),
+    ...(options.bearer
+      ? { Authorization: `Bearer ${options.bearer}` }
+      : authenticated
+        ? authorizationHeader()
+        : {}),
+    ...options.headers,
   };
   let body: BodyInit | undefined = options.form;
   if (options.body !== undefined) {
@@ -144,14 +161,10 @@ export async function request<T>(
     buildUrl(service, path, options.query),
     { method: options.method ?? "GET", headers, body },
     authenticated,
+    options.notifyUnauthorized ?? true,
   );
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
-}
-
-export async function fetchBlob(url: string) {
-  const response = await send(url, { headers: authorizationHeader() }, true);
-  return response.blob();
 }
 
 // The geo API returns URLs on its own /api/v1 prefix; the browser reaches it

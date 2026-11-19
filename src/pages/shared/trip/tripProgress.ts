@@ -17,6 +17,7 @@ export interface PointProgress {
 
 export interface TripProgress {
   arrival?: ArrivalResult;
+  arrivedAt?: string;
   startReported?: boolean;
   points: Record<string, PointProgress>;
   summary?: TripSummary;
@@ -73,6 +74,11 @@ function subscribe(listener: () => void) {
 export const tripProgress = {
   recordArrival(tripId: number, arrival: ArrivalResult) {
     update(tripId, (progress) => ({ ...progress, arrival }));
+  },
+  markArrived(tripId: number, arrivedAt: string) {
+    update(tripId, (progress) =>
+      progress.arrivedAt === arrivedAt ? progress : { ...progress, arrivedAt },
+    );
   },
   markStartReported(tripId: number) {
     update(tripId, (progress) => ({ ...progress, startReported: true }));

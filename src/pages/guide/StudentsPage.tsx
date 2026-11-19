@@ -1,19 +1,14 @@
-import { Pencil, Phone, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Phone, Users } from "lucide-react";
+import { useSearchParams } from "react-router";
 import { listTripGeometries } from "../../api/routeGeometry";
-import { deactivateStudent, listStudents } from "../../api/students";
+import { listStudents } from "../../api/students";
 import type { Route, Student, TripCode, TripGeometry } from "../../api/types";
 import { AsyncContent } from "../../components/AsyncContent";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Notice } from "../../components/Notice";
 import { RoutePicker } from "../../components/RoutePicker";
 import { EmptyState } from "../../components/States";
-import { errorMessage, useToast } from "../../components/toast/ToastContext";
 import { useAssignedRoutes } from "../../hooks/useAssignedRoutes";
 import { useResource } from "../../hooks/useResource";
 import { TRIP_LABELS } from "../../lib/labels";
-import { MAX_STUDENTS } from "../../lib/rules";
 
 function pointName(
   geometries: TripGeometry[] | undefined,
@@ -30,11 +25,9 @@ function pointName(
 function StudentRow({
   student,
   geometries,
-  onDeactivate,
 }: {
   student: Student;
   geometries: TripGeometry[] | undefined;
-  onDeactivate: () => void;
 }) {
   const guardian =
     student.guardians.find((candidate) => candidate.primary) ??
@@ -61,60 +54,23 @@ function StudentRow({
           </div>
         )}
       </dl>
-      <div className="cluster">
-        {guardian && guardian.phone && (
-          <a className="button" href={`tel:${guardian.phone}`}>
-            <Phone size={20} aria-hidden="true" />
-            Llamar al acudiente
-          </a>
-        )}
-        <Link
-          className="button"
-          to={`/guide/students/${student.id}?routeId=${student.routeId}`}
-        >
-          <Pencil size={20} aria-hidden="true" />
-          Editar
-        </Link>
-        <button
-          type="button"
-          className="button button--quiet"
-          onClick={onDeactivate}
-        >
-          Desactivar
-        </button>
-      </div>
+      {guardian?.phone && (
+        <a className="button" href={`tel:${guardian.phone}`}>
+          <Phone size={20} aria-hidden="true" />
+          Llamar al acudiente
+        </a>
+      )}
     </li>
   );
 }
 
 function RouteStudents({ route }: { route: Route }) {
-  const navigate = useNavigate();
-  const toast = useToast();
   const students = useResource(`students:${route.routeId}`, () =>
     listStudents(route.routeId),
   );
   const geometries = useResource(`geometry:${route.routeCode}`, () =>
     listTripGeometries({ routeCode: route.routeCode }),
   );
-  const [deactivating, setDeactivating] = useState<Student | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const confirmDeactivate = async () => {
-    if (!deactivating) return;
-    setBusy(true);
-    try {
-      await deactivateStudent(deactivating.id);
-      toast.show(`${deactivating.name} quedó desactivado.`, {
-        tone: "success",
-      });
-      setDeactivating(null);
-      students.reload();
-    } catch (error) {
-      toast.show(errorMessage(error), { tone: "error" });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <AsyncContent resource={students} loadingLabel="Cargando estudiantes…">
@@ -122,42 +78,12 @@ function RouteStudents({ route }: { route: Route }) {
         const active = list
           .filter((student) => student.active)
           .toSorted((a, b) => a.name.localeCompare(b.name));
-        const full = active.length >= MAX_STUDENTS;
         return (
           <section className="section" aria-labelledby="students-title">
             <div className="section__header">
               <h2 id="students-title">Ruta {route.routeCode}</h2>
-              <button
-                type="button"
-                className="button button--primary"
-                disabled={full}
-                onClick={() =>
-                  navigate(`/guide/students/new?routeId=${route.routeId}`)
-                }
-              >
-                <UserPlus size={20} aria-hidden="true" />
-                Agregar estudiante
-              </button>
+              <span className="chip">{active.length} estudiantes</span>
             </div>
-            <div className="capacity">
-              <span>
-                <strong>
-                  {active.length} de {MAX_STUDENTS}
-                </strong>{" "}
-                estudiantes inscritos
-              </span>
-              <div className="meter" aria-hidden="true">
-                <span
-                  style={{ width: `${(active.length / MAX_STUDENTS) * 100}%` }}
-                />
-              </div>
-            </div>
-            {full && (
-              <Notice tone="warning">
-                La ruta llegó al máximo de {MAX_STUDENTS} estudiantes. Desactiva
-                a alguien para inscribir a otra persona.
-              </Notice>
-            )}
             {active.length === 0 ? (
               <EmptyState
                 icon={Users}
@@ -170,25 +96,10 @@ function RouteStudents({ route }: { route: Route }) {
                     key={student.id}
                     student={student}
                     geometries={geometries.data}
-                    onDeactivate={() => setDeactivating(student)}
                   />
                 ))}
               </ul>
             )}
-            <ConfirmDialog
-              open={deactivating !== null}
-              title={`¿Desactivar a ${deactivating?.name ?? ""}?`}
-              confirmLabel="Desactivar estudiante"
-              danger
-              busy={busy}
-              onConfirm={confirmDeactivate}
-              onCancel={() => setDeactivating(null)}
-            >
-              <p>
-                Deja de aparecer en la asistencia de la ruta {route.routeCode}.
-                Su historial se conserva.
-              </p>
-            </ConfirmDialog>
           </section>
         );
       }}
@@ -230,10 +141,7 @@ export default function StudentsPage() {
                   setSearchParams({ route: routeCode }, { replace: true })
                 }
               />
-              <RouteStudents
-                key={selected.routeId}
-                route={selected}
-              />
+              <RouteStudents key={selected.routeId} route={selected} />
             </>
           );
         }}

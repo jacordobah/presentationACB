@@ -15,6 +15,7 @@ import { LocationNotice } from "../../../components/LocationNotice";
 import { Notice } from "../../../components/Notice";
 import { errorMessage, useToast } from "../../../components/toast/ToastContext";
 import { CODES } from "../../../lib/codes";
+import { GPS_TRACKING_ENABLED } from "../../../lib/config";
 import { formatTime } from "../../../lib/dates";
 import { distanceMeters, formatDistance } from "../../../lib/geo";
 import { PUNCTUALITY_LABELS } from "../../../lib/labels";
@@ -42,17 +43,22 @@ function ArrivalRoster({
   trip,
   arrivals,
   currentUserId,
+  localArrivalAt,
 }: {
   trip: Trip;
   arrivals: CodeReport[];
   currentUserId: number;
+  localArrivalAt: string | undefined;
 }) {
   const people = new Map<number, string>();
   trip.guides.forEach((guide) => people.set(guide.guideId, guide.name));
   trip.executors.forEach((executor) =>
     people.set(executor.userId, executor.name),
   );
-  const arrivedCount = new Set(arrivals.map((report) => report.userId)).size;
+  const arrivedCount = new Set([
+    ...arrivals.map((report) => report.userId),
+    ...(localArrivalAt ? [currentUserId] : []),
+  ]).size;
 
   return (
     <section className="section" aria-labelledby="roster-title">
@@ -68,7 +74,11 @@ function ArrivalRoster({
       </div>
       <ul className="roster">
         {[...people].map(([userId, name]) => {
-          const arrival = arrivals.find((report) => report.userId === userId);
+          const arrival =
+            arrivals.find((report) => report.userId === userId) ??
+            (userId === currentUserId && localArrivalAt
+              ? { notifiedAt: localArrivalAt }
+              : undefined);
           return (
             <li
               key={userId}
@@ -150,9 +160,13 @@ export function BeforeStart({
     (report) => report.code === "523" && report.tripCode === trip.tripCode,
   );
   const myArrival = arrivals.find((report) => report.userId === user.id);
-  const enoughArrivals =
-    new Set(arrivals.map((report) => report.userId)).size >=
-    trip.requiredGuides;
+  const localArrivalAt = progress.arrivedAt;
+  const hasArrival = Boolean(myArrival || localArrivalAt);
+  const arrivedCount = new Set([
+    ...arrivals.map((report) => report.userId),
+    ...(localArrivalAt ? [user.id] : []),
+  ]).size;
+  const enoughArrivals = arrivedCount >= trip.requiredGuides;
 
   const handleArrival = async () => {
     if (!fix) return;
@@ -176,6 +190,7 @@ export function BeforeStart({
         userId: user.id,
       });
       if (arrival) tripProgress.recordArrival(trip.id, arrival);
+      tripProgress.markArrived(trip.id, new Date().toISOString());
       toast.show("Llegada reportada.", { tone: "success" });
       onCodesChanged();
     } catch (error) {
@@ -204,6 +219,7 @@ export function BeforeStart({
         tripCode: trip.tripCode,
         userId: user.id,
         date: trip.date,
+        geoRouteId: geometry.geoRouteId,
       });
       toast.show("Recorrido iniciado.", { tone: "success" });
       onStarted();
@@ -247,7 +263,18 @@ export function BeforeStart({
       </div>
       <LocationNotice status={locationStatus} />
 
-      <ArrivalRoster trip={trip} arrivals={arrivals} currentUserId={user.id} />
+      <p className="field__hint">
+        {GPS_TRACKING_ENABLED
+          ? "Al iniciar, la app intentará crear la sesión de seguimiento GPS. Si el servicio no está disponible, el recorrido continuará sin tracking."
+          : "El seguimiento GPS no está habilitado en esta versión."}
+      </p>
+
+      <ArrivalRoster
+        trip={trip}
+        arrivals={arrivals}
+        currentUserId={user.id}
+        localArrivalAt={localArrivalAt}
+      />
 
       {progress.arrival && <PunctualityResult arrival={progress.arrival} />}
 
@@ -256,7 +283,7 @@ export function BeforeStart({
           Para operar este recorrido primero debes asumirlo desde el detalle de
           la ruta.
         </Notice>
-      ) : !myArrival ? (
+      ) : !hasArrival ? (
         <div className="stack">
           {refusal && <p className="field__error">{refusal}</p>}
           <button
@@ -275,7 +302,12 @@ export function BeforeStart({
         <div className="stack">
           {!progress.arrival && (
             <Notice tone="success">
-              Reportaste tu llegada a las {formatTime(myArrival.notifiedAt)}
+              Reportaste tu llegada a las{" "}
+              {myArrival
+                ? formatTime(myArrival.notifiedAt)
+                : localArrivalAt
+                  ? formatTime(localArrivalAt)
+                  : ""}
             </Notice>
           )}
           <button

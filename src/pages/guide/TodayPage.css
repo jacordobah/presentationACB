@@ -1,0 +1,58 @@
+.trip-cards {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.trip-card.list-row--progress {
+  border-left-color: var(--progress);
+}
+
+.trip-card.list-row--done {
+  border-left-color: var(--done);
+}
+
+.trip-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trip-card__identity {
+  display: grid;
+  gap: 2px;
+}
+
+.trip-card__shift {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.trip-card__school {
+  font-weight: 700;
+}
+
+.trip-card__meta {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.trip-card > .button {
+  width: 100%;
+}

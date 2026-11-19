@@ -5,17 +5,10 @@ import type {
   DocumentType,
   Punctuality,
   Relationship,
-  Role,
   SchoolShift,
   TripCode,
   TripStatus,
 } from "../api/types";
-
-export const ROLE_LABELS: Record<Role, string> = {
-  GUIDE: "Guía escolar",
-  LEADER: "Líder zonal",
-  MANAGER: "Gerente operativo",
-};
 
 export const TRIP_LABELS: Record<TripCode, string> = {
   "541": "Hacia el colegio",

@@ -19,6 +19,7 @@ import { useResource } from "../../../hooks/useResource";
 import { POLL_INTERVAL_MS } from "../../../lib/config";
 import { todayInBogota } from "../../../lib/dates";
 import { distanceMeters } from "../../../lib/geo";
+import { finishTracking } from "../../../tracking/finishTracking";
 import { clearActiveTrip, setActiveTrip } from "../../../location/activeTrip";
 import { useDeviceLocation, type Fix } from "../../../location/LocationContext";
 import { BeforeStart } from "./BeforeStart";
@@ -100,12 +101,8 @@ function TripOperation({
 
   const canOperate =
     trip.executors.some((executor) => executor.userId === user.id) ||
-    (user.role === "GUIDE" &&
-      trip.guides.some((guide) => guide.guideId === user.id));
-  const isGuide = user.role === "GUIDE";
-  const backPath = isGuide
-    ? "/guide"
-    : `/leader/routes/${trip.routeCode}?tab=today`;
+    trip.guides.some((guide) => guide.guideId === user.id);
+  const backPath = "/guide";
 
   // Any operator's device keeps its screen on while the trip runs, also after a
   // reload or when another guide pressed start.
@@ -117,8 +114,10 @@ function TripOperation({
         tripCode: trip.tripCode,
         userId: user.id,
         date: trip.date,
+        geoRouteId: geometry.data?.geoRouteId ?? null,
       });
     } else if (trip.status === "FINISHED") {
+      void finishTracking(trip.id).catch(() => undefined);
       clearActiveTrip(trip.id);
     }
   }, [
@@ -129,6 +128,7 @@ function TripOperation({
     trip.date,
     canOperate,
     user.id,
+    geometry.data?.geoRouteId,
   ]);
 
   if (trip.status === "FINISHED") {
@@ -139,7 +139,7 @@ function TripOperation({
           trip={trip}
           summary={progress.summary}
           backPath={backPath}
-          backLabel={isGuide ? "Volver a Hoy" : "Volver a la ruta"}
+          backLabel="Volver a Hoy"
         />
       </div>
     );
@@ -258,9 +258,7 @@ export default function TripOperationPage() {
         {() => (
           <EmptyState title="No encontramos este recorrido">
             <p>Solo puedes abrir recorridos programados para hoy.</p>
-            <Link to={user.role === "GUIDE" ? "/guide" : "/leader/routes"}>
-              Volver
-            </Link>
+            <Link to="/guide">Volver</Link>
           </EmptyState>
         )}
       </AsyncContent>

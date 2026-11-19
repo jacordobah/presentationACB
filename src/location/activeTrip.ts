@@ -9,6 +9,8 @@ export interface ActiveTrip {
   tripCode: TripCode;
   userId: number;
   date: string;
+  // Persisted so tracking can resume after a reload without another lookup.
+  geoRouteId?: string | null;
 }
 
 const STORAGE_KEY = "acb.activeTrip";
@@ -23,14 +25,25 @@ function subscribe(listener: () => void) {
 }
 
 export function setActiveTrip(trip: ActiveTrip | null) {
+  // A reload can briefly render the trip before its geometry is available;
+  // keep the geoRouteId already stored instead of clearing it.
+  const next =
+    trip && activeTrip?.tripId === trip.tripId && trip.geoRouteId == null
+      ? { ...trip, geoRouteId: activeTrip.geoRouteId }
+      : trip;
+
   if (
-    activeTrip?.tripId === trip?.tripId &&
-    activeTrip?.userId === trip?.userId
+    activeTrip?.tripId === next?.tripId &&
+    activeTrip?.userId === next?.userId &&
+    activeTrip?.routeCode === next?.routeCode &&
+    activeTrip?.tripCode === next?.tripCode &&
+    activeTrip?.date === next?.date &&
+    activeTrip?.geoRouteId === next?.geoRouteId
   ) {
     return;
   }
-  activeTrip = trip;
-  if (trip) writeJson(STORAGE_KEY, trip);
+  activeTrip = next;
+  if (next) writeJson(STORAGE_KEY, next);
   else removeKey(STORAGE_KEY);
   listeners.forEach((listener) => listener());
 }

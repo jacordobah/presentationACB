@@ -1,7 +1,6 @@
 import { Bike, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useAuth, useSessionUser } from "../../auth/AuthContext";
-import { ROLE_LABELS } from "../../lib/labels";
 import { useActiveTrip } from "../../location/activeTrip";
 import { ConfirmDialog } from "../ConfirmDialog";
 
@@ -21,9 +20,9 @@ export function AppHeader() {
       </div>
       <div className="app-header__user">
         <div className="user-badge">
-          <span className="user-badge__name">{user.name}</span>
+          <span className="user-badge__name">{user.name ?? "Guía"}</span>
           <span className="user-badge__role">
-            {ROLE_LABELS[user.role]}
+            Guía escolar
             {user.zone && (
               <span className="user-badge__zone">Zona {user.zone}</span>
             )}
