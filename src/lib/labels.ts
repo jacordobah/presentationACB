@@ -6,7 +6,6 @@ import type {
   Punctuality,
   Relationship,
   Role,
-  RouteStatus,
   SchoolShift,
   TripCode,
   TripStatus,
@@ -27,13 +26,6 @@ export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
   SCHEDULED: "Programado",
   IN_PROGRESS: "En curso",
   FINISHED: "Finalizado",
-};
-
-export const ROUTE_STATUS_LABELS: Record<RouteStatus, string> = {
-  DRAFT: "Borrador",
-  IN_REVIEW: "En revisión",
-  APPROVED: "Aprobada",
-  REJECTED: "Rechazada",
 };
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {

@@ -9,7 +9,12 @@ import { EmptyState } from "../../components/States";
 import { useNow } from "../../hooks/useNow";
 import { useResource } from "../../hooks/useResource";
 import { LIST_POLL_MS } from "../../lib/config";
-import { formatElapsed, formatTime, todayInBogota } from "../../lib/dates";
+import {
+  atTripTime,
+  formatElapsed,
+  formatTime,
+  todayInBogota,
+} from "../../lib/dates";
 import { TRIP_LABELS } from "../../lib/labels";
 
 interface PendingItem {
@@ -55,7 +60,8 @@ function findPending(trips: Trip[], codes: CodeReport[], now: number) {
   const missingArrivals: PendingItem[] = trips
     .filter(
       (trip) =>
-        trip.status === "SCHEDULED" && now > Date.parse(trip.citationTime),
+        trip.status === "SCHEDULED" &&
+        now > atTripTime(trip.date, trip.citationTime).getTime(),
     )
     .flatMap((trip) => {
       const arrived = arrivedUsers(trip);
@@ -67,7 +73,7 @@ function findPending(trips: Trip[], codes: CodeReport[], now: number) {
         {
           key: `arrival-${trip.id}`,
           title: tripTitle(trip),
-          detail: `Citación ${formatTime(trip.citationTime)}, ${formatElapsed(trip.citationTime, now)}. Sin 523: ${missing.join(", ") || "sin guías asignados"}.`,
+          detail: `Citación ${formatTime(trip.citationTime)}, ${formatElapsed(atTripTime(trip.date, trip.citationTime).toISOString(), now)}. Sin 523: ${missing.join(", ") || "sin guías asignados"}.`,
           link: `/leader/routes/${trip.routeCode}?tab=today`,
         },
       ];
@@ -76,12 +82,13 @@ function findPending(trips: Trip[], codes: CodeReport[], now: number) {
   const notStarted: PendingItem[] = trips
     .filter(
       (trip) =>
-        trip.status === "SCHEDULED" && now > Date.parse(trip.scheduledStart),
+        trip.status === "SCHEDULED" &&
+        now > atTripTime(trip.date, trip.scheduledStart).getTime(),
     )
     .map((trip) => ({
       key: `start-${trip.id}`,
       title: tripTitle(trip),
-      detail: `Debía iniciar a las ${formatTime(trip.scheduledStart)}, ${formatElapsed(trip.scheduledStart, now)}.`,
+      detail: `Debía iniciar a las ${formatTime(trip.scheduledStart)}, ${formatElapsed(atTripTime(trip.date, trip.scheduledStart).toISOString(), now)}.`,
       link: `/leader/routes/${trip.routeCode}?tab=today`,
     }));
 

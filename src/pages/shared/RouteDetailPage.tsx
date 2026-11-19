@@ -1,17 +1,15 @@
 import { ArrowLeft, Bike, Phone, Users } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { listTripGeometries } from "../../api/routeGeometry";
 import { getRoute } from "../../api/routes";
 import { listStudents } from "../../api/students";
-import { assumeTrip, listTrips } from "../../api/trips";
+import { listTrips } from "../../api/trips";
 import type { Route, Trip } from "../../api/types";
 import { useSessionUser } from "../../auth/AuthContext";
 import { AsyncContent } from "../../components/AsyncContent";
-import { RouteStatusChip, TripStatusChip } from "../../components/Chips";
+import { TripStatusChip } from "../../components/Chips";
 import { RoutePreview } from "../../components/RoutePreview";
 import { EmptyState } from "../../components/States";
-import { errorMessage, useToast } from "../../components/toast/ToastContext";
 import { useResource } from "../../hooks/useResource";
 import { LIST_POLL_MS } from "../../lib/config";
 import { formatTime, todayInBogota } from "../../lib/dates";
@@ -30,8 +28,8 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function MapTab({ route }: { route: Route }) {
-  const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }, route.schoolName),
+  const geometries = useResource(`geometry:${route.routeCode}`, () =>
+    listTripGeometries({ routeCode: route.routeCode }, route.schoolName),
   );
   return (
     <AsyncContent
@@ -40,38 +38,15 @@ function MapTab({ route }: { route: Route }) {
       isEmpty={(list) => list.length === 0}
       empty={<EmptyState title="Esta ruta todavía no tiene trazado" />}
     >
-      {(list) => <RoutePreview routeCode={route.code} geometries={list} />}
+      {(list) => (
+        <RoutePreview routeCode={route.routeCode} geometries={list} />
+      )}
     </AsyncContent>
   );
 }
 
-function TripRow({ trip, canAssume }: { trip: Trip; canAssume: boolean }) {
+function TripRow({ trip }: { trip: Trip }) {
   const user = useSessionUser();
-  const navigate = useNavigate();
-  const toast = useToast();
-  const [assuming, setAssuming] = useState(false);
-  const isExecutor = trip.executors.some(
-    (executor) => executor.userId === user.id,
-  );
-  const operationPath = `/leader/trips/${trip.id}`;
-
-  const assume = async () => {
-    setAssuming(true);
-    try {
-      await assumeTrip(trip.id);
-      toast.show(
-        `Asumiste el recorrido ${trip.tripCode} de ${trip.routeCode}.`,
-        {
-          tone: "success",
-        },
-      );
-      navigate(operationPath);
-    } catch (error) {
-      toast.show(errorMessage(error), { tone: "error" });
-      setAssuming(false);
-    }
-  };
-
   return (
     <li className={`list-row ${TRIP_ROW_TONES[trip.status]}`}>
       <div className="list-row__top">
@@ -99,43 +74,23 @@ function TripRow({ trip, canAssume }: { trip: Trip; canAssume: boolean }) {
               : "Sin guías"}
           </dd>
         </div>
-        {trip.executors.length > 0 && (
-          <div>
-            <dt>Lo ejecutan</dt>
-            <dd>
-              {trip.executors.map((executor) => executor.name).join(", ")}
-            </dd>
-          </div>
-        )}
       </dl>
-      {canAssume &&
-        trip.status !== "FINISHED" &&
-        (isExecutor ? (
-          <Link className="button button--primary" to={operationPath}>
-            Abrir recorrido
-          </Link>
-        ) : (
-          <button
-            type="button"
-            className="button"
-            disabled={assuming}
-            onClick={assume}
-          >
-            <Bike size={20} aria-hidden="true" />
-            {assuming ? "Asumiendo…" : "Asumir recorrido"}
-          </button>
-        ))}
+      {user.role === "LEADER" && (
+        <Link className="button button--primary" to={`/leader/trips/${trip.id}`}>
+          Abrir recorrido
+        </Link>
+      )}
     </li>
   );
 }
 
-function TodayTab({ route, canAssume }: { route: Route; canAssume: boolean }) {
+function TodayTab({ route }: { route: Route }) {
   const today = todayInBogota();
   const trips = useResource(
-    `trips:${today}:${route.code}`,
+    `trips:${today}:${route.routeId}`,
     async () =>
       (await listTrips({ date: today })).filter(
-        (trip) => trip.routeCode === route.code,
+        (trip) => trip.routeId === route.routeId,
       ),
     { pollMs: LIST_POLL_MS },
   );
@@ -151,7 +106,7 @@ function TodayTab({ route, canAssume }: { route: Route; canAssume: boolean }) {
       {(list) => (
         <ul className="list">
           {list.map((trip) => (
-            <TripRow key={trip.id} trip={trip} canAssume={canAssume} />
+            <TripRow key={trip.id} trip={trip} />
           ))}
         </ul>
       )}
@@ -160,8 +115,8 @@ function TodayTab({ route, canAssume }: { route: Route; canAssume: boolean }) {
 }
 
 function StudentsTab({ route }: { route: Route }) {
-  const students = useResource(`students:${route.code}`, async () =>
-    (await listStudents(route.code))
+  const students = useResource(`students:${route.routeId}`, async () =>
+    (await listStudents(route.routeId))
       .filter((student) => student.active)
       .toSorted((a, b) => a.name.localeCompare(b.name)),
   );
@@ -192,11 +147,11 @@ function StudentsTab({ route }: { route: Route }) {
                 <dl className="facts">
                   <div>
                     <dt>Punto 541</dt>
-                    <dd>{student.meetingPoints["541"]}</dd>
+                    <dd>{student.meetingPoints["541"] ?? "—"}</dd>
                   </div>
                   <div>
                     <dt>Punto 542</dt>
-                    <dd>{student.meetingPoints["542"]}</dd>
+                    <dd>{student.meetingPoints["542"] ?? "—"}</dd>
                   </div>
                   {guardian && (
                     <div>
@@ -205,7 +160,7 @@ function StudentsTab({ route }: { route: Route }) {
                     </div>
                   )}
                 </dl>
-                {guardian && (
+                {guardian && guardian.phone && (
                   <a className="button" href={`tel:${guardian.phone}`}>
                     <Phone size={20} aria-hidden="true" />
                     Llamar al acudiente
@@ -221,7 +176,7 @@ function StudentsTab({ route }: { route: Route }) {
 }
 
 export default function RouteDetailPage() {
-  const { code = "" } = useParams();
+  const { routeId = "" } = useParams();
   const user = useSessionUser();
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -229,7 +184,9 @@ export default function RouteDetailPage() {
     ? (requestedTab as TabId)
     : "map";
   const basePath = user.role === "MANAGER" ? "/manager" : "/leader";
-  const route = useResource(`route:${code}`, () => getRoute(code));
+  const route = useResource(`route:${routeId}`, () =>
+    getRoute(Number(routeId)),
+  );
 
   return (
     <div className="page">
@@ -242,10 +199,10 @@ export default function RouteDetailPage() {
           <>
             <header className="page-header">
               <div className="page-header__title">
-                <h1>Ruta {loaded.code}</h1>
+                <h1>Ruta {loaded.routeCode}</h1>
                 <p className="page-header__subtitle">{loaded.schoolName}</p>
               </div>
-              <RouteStatusChip status={loaded.status} />
+              <span className="chip">{loaded.shiftCode}</span>
             </header>
             <dl className="facts">
               <div>
@@ -286,12 +243,10 @@ export default function RouteDetailPage() {
               ))}
             </nav>
             {tab === "map" && <MapTab route={loaded} />}
-            {tab === "today" && (
-              <TodayTab route={loaded} canAssume={user.role === "LEADER"} />
-            )}
+            {tab === "today" && <TodayTab route={loaded} />}
             {tab === "students" && <StudentsTab route={loaded} />}
             {tab === "attendance" && (
-              <AttendanceHistory routeCode={loaded.code} />
+              <AttendanceHistory routeId={loaded.routeId} />
             )}
           </>
         )}

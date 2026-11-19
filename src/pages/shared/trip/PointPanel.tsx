@@ -144,9 +144,9 @@ export function PointPanel({
       if (savesAttendance) {
         await saveAttendance(
           trip.id,
-          point.code,
           listed.map((student) => ({
             studentId: student.id,
+            studentName: student.name,
             present: present.has(student.id),
           })),
         );

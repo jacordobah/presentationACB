@@ -5,7 +5,6 @@ import { listStaff } from "../../api/staff";
 import type { Route, StaffMember } from "../../api/types";
 import { useSessionUser } from "../../auth/AuthContext";
 import { AsyncContent } from "../../components/AsyncContent";
-import { RouteStatusChip } from "../../components/Chips";
 import { Notice } from "../../components/Notice";
 import { EmptyState } from "../../components/States";
 import { errorMessage, useToast } from "../../components/toast/ToastContext";
@@ -85,8 +84,8 @@ function RouteAssignment({
   const save = async () => {
     setSaving(true);
     try {
-      await assignGuides(route.code, draft);
-      toast.show(`Guías de ${route.code} guardados.`, { tone: "success" });
+      await assignGuides(route.routeId, draft);
+      toast.show(`Guías de ${route.routeCode} guardados.`, { tone: "success" });
       onSaved();
     } catch (error) {
       toast.show(errorMessage(error), { tone: "error" });
@@ -98,16 +97,15 @@ function RouteAssignment({
   return (
     <section
       className="assignment"
-      aria-labelledby={`assignment-${route.code}`}
+      aria-labelledby={`assignment-${route.routeCode}`}
     >
       <div className="list-row__top">
         <div className="list-row__title">
-          <h2 id={`assignment-${route.code}`} className="route-code">
-            {route.code}
+          <h2 id={`assignment-${route.routeCode}`} className="route-code">
+            {route.routeCode}
           </h2>
           <span>{route.schoolName}</span>
         </div>
-        <RouteStatusChip status={route.status} />
       </div>
       <p className="muted">
         {plural(route.studentCount, "estudiante", "estudiantes")}: necesita{" "}
@@ -124,7 +122,7 @@ function RouteAssignment({
         <ul className="assignment__list">
           {draft.map((assignment) => {
             const others = otherRoutesOf(assignment.guideId).filter(
-              (code) => code !== route.code,
+              (code) => code !== route.routeCode,
             );
             return (
               <li key={assignment.guideId} className="assignment__item">
@@ -139,7 +137,7 @@ function RouteAssignment({
                 <label className="checkbox">
                   <input
                     type="radio"
-                    name={`primary-${route.code}`}
+                    name={`primary-${route.routeCode}`}
                     checked={assignment.primary}
                     onChange={() =>
                       setDraft((current) =>
@@ -156,7 +154,7 @@ function RouteAssignment({
                   type="button"
                   className="button button--quiet button--icon"
                   onClick={() => remove(assignment.guideId)}
-                  aria-label={`Quitar a ${nameOf(assignment.guideId)} de ${route.code}`}
+                  aria-label={`Quitar a ${nameOf(assignment.guideId)} de ${route.routeCode}`}
                 >
                   <X size={22} aria-hidden="true" />
                 </button>
@@ -166,11 +164,11 @@ function RouteAssignment({
         </ul>
       )}
       <div className="cluster">
-        <label className="visually-hidden" htmlFor={`candidate-${route.code}`}>
-          Guía para agregar a {route.code}
+        <label className="visually-hidden" htmlFor={`candidate-${route.routeCode}`}>
+          Guía para agregar a {route.routeCode}
         </label>
         <select
-          id={`candidate-${route.code}`}
+          id={`candidate-${route.routeCode}`}
           className="input assignment__select"
           value={candidate}
           onChange={(event) => setCandidate(event.target.value)}
@@ -198,7 +196,7 @@ function RouteAssignment({
         disabled={!changed || saving || missing > 0}
         onClick={save}
       >
-        {saving ? "Guardando…" : `Guardar guías de ${route.code}`}
+        {saving ? "Guardando…" : `Guardar guías de ${route.routeCode}`}
       </button>
     </section>
   );
@@ -207,9 +205,7 @@ function RouteAssignment({
 export default function SchedulePage() {
   const user = useSessionUser();
   const routes = useResource("routes:schedule", async () =>
-    (await listRoutes()).filter(
-      (route) => route.active && route.status !== "REJECTED",
-    ),
+    (await listRoutes()).filter((route) => route.active),
   );
   const guides = useResource(`guides:${user.zone}`, async () =>
     (await listStaff("guides", user.zone)).filter((guide) => guide.active),
@@ -240,7 +236,7 @@ export default function SchedulePage() {
               <div className="stack">
                 {routeList.map((route) => (
                   <RouteAssignment
-                    key={`${route.code}:${route.guides.map((guide) => guide.guideId).join(",")}`}
+                    key={`${route.routeCode}:${route.guides.map((guide) => guide.guideId).join(",")}`}
                     route={route}
                     guides={guideList}
                     otherRoutesOf={(guideId) =>
@@ -250,7 +246,7 @@ export default function SchedulePage() {
                             (guide) => guide.guideId === guideId,
                           ),
                         )
-                        .map((other) => other.code)
+                        .map((other) => other.routeCode)
                     }
                     onSaved={routes.reload}
                   />

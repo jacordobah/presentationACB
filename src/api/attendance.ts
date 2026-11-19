@@ -1,10 +1,10 @@
 import { request } from "./http";
 import type { AttendanceRecord } from "./types";
 
-export function listAttendance(routeCode: string, from: string, to: string) {
+export function listAttendance(routeId: number, from: string, to: string) {
   return request<AttendanceRecord[]>(
     "admin",
-    `routes/${routeCode}/attendance`,
+    `routes/${routeId}/attendance`,
     {
       query: { from, to },
     },
@@ -13,11 +13,10 @@ export function listAttendance(routeCode: string, from: string, to: string) {
 
 export function saveAttendance(
   tripId: number,
-  meetingPointCode: string,
-  records: { studentId: number; present: boolean }[],
+  records: { studentId: number; studentName: string; present: boolean }[],
 ) {
-  return request<void>("admin", `trips/${tripId}/attendance`, {
+  return request<{ saved: number }>("admin", `trips/${tripId}/attendance`, {
     method: "POST",
-    body: { meetingPointCode, records },
+    body: { records },
   });
 }

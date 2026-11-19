@@ -6,13 +6,13 @@ import {
   updateRoute,
 } from "../../api/routes";
 import { listSchools } from "../../api/schools";
-import type { Route, School } from "../../api/types";
+import type { Route, School, TripCode } from "../../api/types";
 import { AsyncContent } from "../../components/AsyncContent";
-import { RouteStatusChip } from "../../components/Chips";
 import { Field } from "../../components/Field";
 import { Notice } from "../../components/Notice";
 import { errorMessage, useToast } from "../../components/toast/ToastContext";
 import { useResource } from "../../hooks/useResource";
+import { TRIP_LABELS } from "../../lib/labels";
 import { ManagedList } from "./ManagedList";
 
 const ROUTE_CODE = /^[A-Z]{2}\d{2}$/;
@@ -27,9 +27,15 @@ function RouteForm({
   onSaved: () => void;
 }) {
   const toast = useToast();
-  const [code, setCode] = useState(route?.code ?? "");
+  const [code, setCode] = useState(route?.routeCode ?? "");
   const [schoolId, setSchoolId] = useState(route ? String(route.schoolId) : "");
   const [description, setDescription] = useState(route?.description ?? "");
+  const [shiftCode, setShiftCode] = useState<TripCode>(
+    route?.shiftCode ?? "541",
+  );
+  const [scheduledStartTime, setScheduledStartTime] = useState(
+    (route?.scheduledStartTime ?? "06:00").slice(0, 5),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const zone = code.slice(0, 2);
@@ -50,15 +56,21 @@ function RouteForm({
       setError("Elige el colegio y escribe la descripción.");
       return;
     }
+    if (!scheduledStartTime) {
+      setError("Elige la hora de inicio.");
+      return;
+    }
     const input = {
-      code,
+      routeCode: code,
+      shiftCode,
       schoolId: Number(schoolId),
       description: description.trim(),
+      scheduledStartTime: `${scheduledStartTime}:00`,
     };
     setSaving(true);
     setError(null);
     try {
-      if (route) await updateRoute(route.code, input);
+      if (route) await updateRoute(route.routeId, input);
       else await createRoute(input);
       toast.show(`Ruta ${code} guardada.`, { tone: "success" });
       onSaved();
@@ -112,6 +124,35 @@ function RouteForm({
           </select>
         )}
       </Field>
+      <Field label="Jornada">
+        {(control) => (
+          <select
+            {...control}
+            className="input"
+            value={shiftCode}
+            onChange={(event) =>
+              setShiftCode(event.target.value as TripCode)
+            }
+          >
+            {(["541", "542"] as const).map((value) => (
+              <option key={value} value={value}>
+                {value} {TRIP_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Hora de inicio">
+        {(control) => (
+          <input
+            {...control}
+            className="input"
+            type="time"
+            value={scheduledStartTime}
+            onChange={(event) => setScheduledStartTime(event.target.value)}
+          />
+        )}
+      </Field>
       <Field label="Descripción">
         {(control) => (
           <textarea
@@ -144,23 +185,20 @@ export function RoutesSection() {
           items={list}
           noun="rutas"
           addLabel="Agregar ruta"
-          keyOf={(route) => route.code}
-          nameOf={(route) => `Ruta ${route.code}`}
+          keyOf={(route) => route.routeId}
+          nameOf={(route) => `Ruta ${route.routeCode}`}
           isActive={(route) => route.active}
           renderDetails={(route) => (
-            <>
-              <dl className="facts">
-                <div>
-                  <dt>Colegio</dt>
-                  <dd>{route.schoolName}</dd>
-                </div>
-                <div>
-                  <dt>Estudiantes</dt>
-                  <dd>{route.studentCount}</dd>
-                </div>
-              </dl>
-              <RouteStatusChip status={route.status} />
-            </>
+            <dl className="facts">
+              <div>
+                <dt>Colegio</dt>
+                <dd>{route.schoolName}</dd>
+              </div>
+              <div>
+                <dt>Estudiantes</dt>
+                <dd>{route.studentCount}</dd>
+              </div>
+            </dl>
           )}
           renderForm={(route, close) => (
             <RouteForm
@@ -173,7 +211,7 @@ export function RoutesSection() {
             />
           )}
           deactivate={async (route) => {
-            await deactivateRoute(route.code);
+            await deactivateRoute(route.routeId);
             routes.reload();
           }}
           deactivateWarning="La ruta deja de estar disponible para programar. Su historial se conserva."

@@ -6,7 +6,6 @@ export type Relationship =
 export type OperationalCode =
   "58" | "512" | "520" | "523" | "524" | "537" | "541" | "542" | "550";
 export type SchoolShift = "MORNING" | "AFTERNOON" | "FULL_DAY";
-export type RouteStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED";
 export type TripStatus = "SCHEDULED" | "IN_PROGRESS" | "FINISHED";
 export type ArrivalType = "NON_IMPACT" | "IMPACT";
 export type ArrivalStatus = "PENDING" | "NOTIFIED" | "OPEN" | "MINUTED";
@@ -76,30 +75,30 @@ export interface RouteGuide {
 }
 
 export interface Route {
-  code: string;
+  routeId: number;
+  routeCode: string;
+  shiftCode: TripCode;
+  description: string | null;
   schoolId: number;
   schoolName: string | null;
-  zone: string;
-  description: string;
-  status: RouteStatus;
-  reviewNotes: string | null;
-  proposedBy: { id: number; name: string };
-  active: boolean;
+  zone: string | null;
+  scheduledStartTime: string;
   guides: RouteGuide[];
   studentCount: number;
+  active: boolean;
 }
 
 export interface RouteInput {
-  code: string;
-  schoolId: number;
+  routeCode: string;
+  shiftCode: TripCode;
   description: string;
+  schoolId: number;
+  scheduledStartTime: string;
 }
 
 export interface Guardian {
-  id?: number;
+  id: number | null;
   name: string;
-  documentType: DocumentType;
-  documentNumber: string;
   phone: string;
   relationship: Relationship;
   primary: boolean;
@@ -107,33 +106,60 @@ export interface Guardian {
 
 export interface Student {
   id: number;
+  name: string;
+  active: boolean;
+  routeId: number;
+  routeCode: string;
+  documentType: DocumentType;
+  documentNumber: string;
+  address: string | null;
+  phone: string | null;
+  grade: string | null;
+  schoolShift: SchoolShift | null;
+  section: string | null;
+  schoolId: number | null;
+  guardians: Guardian[];
+  meetingPoints: Record<TripCode, string | null>;
+}
+
+export interface StudentUserInput {
   documentType: DocumentType;
   documentNumber: string;
   name: string;
   address: string;
-  grade: string;
-  schoolShift: SchoolShift;
-  routeCode: string;
-  meetingPoints: Record<TripCode, string>;
-  guardians: Guardian[];
-  active: boolean;
+  phone: string;
 }
 
-export type StudentInput = Omit<Student, "id" | "active">;
+export interface StudentEnrollmentInput {
+  grade: string;
+  schoolShift: SchoolShift;
+  section: string;
+  schoolId?: number;
+}
+
+export interface StudentInput {
+  user: StudentUserInput;
+  student: StudentEnrollmentInput;
+  meetingPoints: Record<TripCode, string>;
+}
 
 export interface AttendanceRecord {
   date: string;
   tripCode: TripCode;
+  tripId: number;
   studentId: number;
   studentName: string;
   present: boolean;
+  statusCode: string;
 }
 
 export interface Trip {
   id: number;
+  routeId: number;
   routeCode: string;
   tripCode: TripCode;
   date: string;
+  schoolName: string;
   scheduledStart: string;
   citationTime: string;
   status: TripStatus;

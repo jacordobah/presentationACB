@@ -177,8 +177,8 @@ export default function ReportsPage() {
             >
               <option value="">Todas las rutas</option>
               {routes.data?.map((route) => (
-                <option key={route.code} value={route.code}>
-                  {route.code}
+                <option key={route.routeId} value={route.routeCode}>
+                  {route.routeCode}
                 </option>
               ))}
             </select>

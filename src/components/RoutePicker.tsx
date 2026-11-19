@@ -7,19 +7,19 @@ export function RoutePicker({
 }: {
   routes: Route[];
   selected: string;
-  onSelect: (code: string) => void;
+  onSelect: (routeCode: string) => void;
 }) {
   if (routes.length === 1) return null;
   return (
     <div className="segmented" role="group" aria-label="Ruta">
       {routes.map((route) => (
         <button
-          key={route.code}
+          key={route.routeId}
           type="button"
-          aria-pressed={route.code === selected}
-          onClick={() => onSelect(route.code)}
+          aria-pressed={route.routeCode === selected}
+          onClick={() => onSelect(route.routeCode)}
         >
-          {route.code}
+          {route.routeCode}
         </button>
       ))}
     </div>

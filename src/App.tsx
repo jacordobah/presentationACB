@@ -59,7 +59,7 @@ export function App() {
                 />
                 <Route path="routes" element={<RouteProposalsPage />} />
                 <Route path="routes/new" element={<NewRoutePage />} />
-                <Route path="routes/:code" element={<RouteEditorPage />} />
+                <Route path="routes/:routeId" element={<RouteEditorPage />} />
                 <Route path="attendance" element={<AttendancePage />} />
               </Route>
 
@@ -73,7 +73,7 @@ export function App() {
               >
                 <Route path="live" element={<LiveMapPage />} />
                 <Route path="routes" element={<RoutesPage />} />
-                <Route path="routes/:code" element={<RouteDetailPage />} />
+                <Route path="routes/:routeId" element={<RouteDetailPage />} />
                 <Route path="trips/:tripId" element={<TripOperationPage />} />
                 <Route path="schedule" element={<SchedulePage />} />
                 <Route path="reports" element={<ReportsPage />} />
@@ -90,10 +90,10 @@ export function App() {
                 }
               >
                 <Route path="requests" element={<RequestsPage />} />
-                <Route path="requests/:code" element={<RequestDetailPage />} />
+                <Route path="requests/:routeId" element={<RequestDetailPage />} />
                 <Route path="live" element={<LiveMapPage />} />
                 <Route path="routes" element={<RoutesPage />} />
-                <Route path="routes/:code" element={<RouteDetailPage />} />
+                <Route path="routes/:routeId" element={<RouteDetailPage />} />
                 <Route path="admin" element={<ManagementPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="arrivals" element={<ArrivalsPage />} />

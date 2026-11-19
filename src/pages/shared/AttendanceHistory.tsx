@@ -105,15 +105,15 @@ function ByDay({ records }: { records: AttendanceRecord[] }) {
   );
 }
 
-export function AttendanceHistory({ routeCode }: { routeCode: string }) {
+export function AttendanceHistory({ routeId }: { routeId: number }) {
   const today = todayInBogota();
   const [range, setRange] = useState({ from: addDays(today, -13), to: today });
   const [view, setView] = useState<"student" | "day">("student");
   const validRange =
     range.from !== "" && range.to !== "" && range.from <= range.to;
   const records = useResource(
-    validRange ? `attendance:${routeCode}:${range.from}:${range.to}` : null,
-    () => listAttendance(routeCode, range.from, range.to),
+    validRange ? `attendance:${routeId}:${range.from}:${range.to}` : null,
+    () => listAttendance(routeId, range.from, range.to),
   );
 
   return (

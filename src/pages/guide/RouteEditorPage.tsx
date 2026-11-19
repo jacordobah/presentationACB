@@ -1,12 +1,11 @@
-import { ArrowLeft, Send, Upload } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { importKmz, listTripGeometries } from "../../api/routeGeometry";
-import { getRoute, submitRoute, updateRoute } from "../../api/routes";
+import { getRoute, updateRoute } from "../../api/routes";
 import { listSchools } from "../../api/schools";
 import type { Route, School, TripCode, TripGeometry } from "../../api/types";
 import { AsyncContent } from "../../components/AsyncContent";
-import { RouteStatusChip } from "../../components/Chips";
 import { Field } from "../../components/Field";
 import { Notice } from "../../components/Notice";
 import { RoutePreview } from "../../components/RoutePreview";
@@ -14,7 +13,6 @@ import { errorMessage, useToast } from "../../components/toast/ToastContext";
 import { useResource } from "../../hooks/useResource";
 import { formatKilometers } from "../../lib/geo";
 import { TRIP_LABELS, plural } from "../../lib/labels";
-import { routeWithinLimits } from "../../lib/rules";
 
 function RouteDetailsForm({
   route,
@@ -27,10 +25,13 @@ function RouteDetailsForm({
 }) {
   const toast = useToast();
   const [schoolId, setSchoolId] = useState(String(route.schoolId));
-  const [description, setDescription] = useState(route.description);
+  const [description, setDescription] = useState(route.description ?? "");
+  const [shiftCode, setShiftCode] = useState<TripCode>(route.shiftCode);
+  const [scheduledStartTime, setScheduledStartTime] = useState(
+    (route.scheduledStartTime ?? "").slice(0, 5),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const locked = route.status === "IN_REVIEW";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,13 +39,19 @@ function RouteDetailsForm({
       setError("Describe por dónde pasa la ruta.");
       return;
     }
+    if (!scheduledStartTime) {
+      setError("Elige la hora de inicio.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      await updateRoute(route.code, {
-        code: route.code,
+      await updateRoute(route.routeId, {
+        routeCode: route.routeCode,
+        shiftCode,
         schoolId: Number(schoolId),
         description: description.trim(),
+        scheduledStartTime: `${scheduledStartTime}:00`,
       });
       toast.show("Cambios guardados.", { tone: "success" });
       onSaved();
@@ -64,7 +71,6 @@ function RouteDetailsForm({
             {...control}
             className="input"
             value={schoolId}
-            disabled={locked}
             onChange={(event) => setSchoolId(event.target.value)}
           >
             {schools.map((school) => (
@@ -75,24 +81,44 @@ function RouteDetailsForm({
           </select>
         )}
       </Field>
+      <Field label="Jornada">
+        {(control) => (
+          <select
+            {...control}
+            className="input"
+            value={shiftCode}
+            onChange={(event) => setShiftCode(event.target.value as TripCode)}
+          >
+            {(["541", "542"] as const).map((code) => (
+              <option key={code} value={code}>
+                {code} {TRIP_LABELS[code]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Hora de inicio">
+        {(control) => (
+          <input
+            {...control}
+            className="input"
+            type="time"
+            value={scheduledStartTime}
+            onChange={(event) => setScheduledStartTime(event.target.value)}
+          />
+        )}
+      </Field>
       <Field label="Descripción">
         {(control) => (
           <textarea
             {...control}
             className="input"
             value={description}
-            disabled={locked}
             onChange={(event) => setDescription(event.target.value)}
           />
         )}
       </Field>
-      {route.status === "APPROVED" && (
-        <p className="field__hint">
-          Al guardar cambios, la ruta vuelve a borrador y debe enviarse a
-          revisión otra vez.
-        </p>
-      )}
-      <button type="submit" className="button" disabled={locked || saving}>
+      <button type="submit" className="button" disabled={saving}>
         {saving ? "Guardando…" : "Guardar cambios"}
       </button>
     </form>
@@ -115,7 +141,6 @@ function KmzUpload({
   const [error, setError] = useState<string | null>(null);
   const [unlinked, setUnlinked] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const locked = route.status === "IN_REVIEW";
 
   const upload = async () => {
     if (!file) return;
@@ -123,7 +148,7 @@ function KmzUpload({
     setError(null);
     setUnlinked(false);
     try {
-      const { linked } = await importKmz(route.code, tripCode, file);
+      const { linked } = await importKmz(route.routeCode, tripCode, file);
       if (linked) {
         toast.show(`KMZ del recorrido ${tripCode} cargado.`, {
           tone: "success",
@@ -157,33 +182,31 @@ function KmzUpload({
       {error && <Notice tone="error">{error}</Notice>}
       {unlinked && (
         <Notice tone="warning">
-          El archivo se importó, pero ninguna línea se llama «{route.code}{" "}
+          El archivo se importó, pero ninguna línea se llama «{route.routeCode}{" "}
           {tripCode}…», así que no quedará asociado a este recorrido. Renombra
           la línea en el KMZ y súbelo de nuevo.
         </Notice>
       )}
-      {!locked && (
-        <div className="cluster">
-          <label className="button file-button">
-            <Upload size={20} aria-hidden="true" />
-            {file ? file.name : "Elegir archivo KMZ"}
-            <input
-              type="file"
-              accept=".kmz,application/vnd.google-earth.kmz"
-              className="visually-hidden"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            />
-          </label>
-          <button
-            type="button"
-            className="button button--primary"
-            disabled={!file || uploading}
-            onClick={upload}
-          >
-            {uploading ? "Cargando…" : `Cargar KMZ del ${tripCode}`}
-          </button>
-        </div>
-      )}
+      <div className="cluster">
+        <label className="button file-button">
+          <Upload size={20} aria-hidden="true" />
+          {file ? file.name : "Elegir archivo KMZ"}
+          <input
+            type="file"
+            accept=".kmz,application/vnd.google-earth.kmz"
+            className="visually-hidden"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <button
+          type="button"
+          className="button button--primary"
+          disabled={!file || uploading}
+          onClick={upload}
+        >
+          {uploading ? "Cargando…" : `Cargar KMZ del ${tripCode}`}
+        </button>
+      </div>
     </div>
   );
 }
@@ -195,47 +218,17 @@ function RouteEditor({
   route: Route;
   onChanged: () => void;
 }) {
-  const toast = useToast();
-  const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }, route.schoolName),
+  const geometries = useResource(`geometry:${route.routeCode}`, () =>
+    listTripGeometries({ routeCode: route.routeCode }, route.schoolName),
   );
   const schools = useResource(`schools:${route.zone}`, async () =>
     (await listSchools(route.zone)).filter(
       (school) => school.active || school.id === route.schoolId,
     ),
   );
-  const [submitting, setSubmitting] = useState(false);
-  const tripGeometries = geometries.data ?? [];
-  const canSubmit =
-    (route.status === "DRAFT" || route.status === "REJECTED") &&
-    routeWithinLimits(tripGeometries);
-
-  const submit = async () => {
-    setSubmitting(true);
-    try {
-      await submitRoute(route.code);
-      toast.show("Ruta enviada a revisión.", { tone: "success" });
-      onChanged();
-    } catch (error) {
-      toast.show(errorMessage(error), { tone: "error" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <>
-      {route.status === "REJECTED" && route.reviewNotes && (
-        <Notice tone="warning" title="Observaciones de la revisión">
-          {route.reviewNotes}
-        </Notice>
-      )}
-      {route.status === "IN_REVIEW" && (
-        <Notice tone="info" title="La ruta está en revisión">
-          Podrás hacer cambios cuando el gerente operativo responda.
-        </Notice>
-      )}
-
       <section className="section" aria-labelledby="details-title">
         <h2 id="details-title">Datos de la ruta</h2>
         <AsyncContent resource={schools} loadingLabel="Cargando colegios…">
@@ -270,39 +263,25 @@ function RouteEditor({
                 />
               ))}
               {list.length > 0 && (
-                <RoutePreview routeCode={route.code} geometries={list} />
+                <RoutePreview
+                  routeCode={route.routeCode}
+                  geometries={list}
+                />
               )}
             </div>
           )}
         </AsyncContent>
       </section>
-
-      {(route.status === "DRAFT" || route.status === "REJECTED") && (
-        <section className="section">
-          <button
-            type="button"
-            className="button button--primary button--large"
-            disabled={!canSubmit || submitting}
-            onClick={submit}
-          >
-            <Send size={22} aria-hidden="true" />
-            {submitting ? "Enviando…" : "Enviar a revisión"}
-          </button>
-          {!canSubmit && (
-            <p className="field__hint">
-              Para enviarla, carga los dos recorridos dentro de los límites de
-              distancia.
-            </p>
-          )}
-        </section>
-      )}
     </>
   );
 }
 
 export default function RouteEditorPage() {
-  const { code = "" } = useParams();
-  const route = useResource(`route:${code}`, () => getRoute(code));
+  const { routeId = "" } = useParams();
+  const numericId = Number(routeId);
+  const route = useResource(`route:${routeId}`, () =>
+    getRoute(numericId),
+  );
 
   return (
     <div className="page">
@@ -315,10 +294,9 @@ export default function RouteEditorPage() {
           <>
             <header className="page-header">
               <div className="page-header__title">
-                <h1>Ruta {loaded.code}</h1>
+                <h1>Ruta {loaded.routeCode}</h1>
                 <p className="page-header__subtitle">{loaded.schoolName}</p>
               </div>
-              <RouteStatusChip status={loaded.status} />
             </header>
             <RouteEditor route={loaded} onChanged={route.reload} />
           </>

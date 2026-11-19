@@ -1,55 +1,39 @@
 import { request } from "./http";
-import type { Route, RouteInput, RouteStatus } from "./types";
+import type { Route, RouteInput } from "./types";
 
 interface RouteFilters {
+  schoolId?: number | null;
   zone?: string | null;
-  status?: RouteStatus | null;
-  guideId?: number | null;
 }
 
 export function listRoutes(filters: RouteFilters = {}) {
   return request<Route[]>("admin", "routes", { query: { ...filters } });
 }
 
-export function getRoute(code: string) {
-  return request<Route>("admin", `routes/${code}`);
+export function getRoute(routeId: number) {
+  return request<Route>("admin", `routes/${routeId}`);
 }
 
 export function createRoute(input: RouteInput) {
   return request<Route>("admin", "routes", { method: "POST", body: input });
 }
 
-export function updateRoute(code: string, input: RouteInput) {
-  return request<Route>("admin", `routes/${code}`, {
+export function updateRoute(routeId: number, input: RouteInput) {
+  return request<Route>("admin", `routes/${routeId}`, {
     method: "PUT",
     body: input,
   });
 }
 
-export function deactivateRoute(code: string) {
-  return request<void>("admin", `routes/${code}`, { method: "DELETE" });
-}
-
-export function submitRoute(code: string) {
-  return request<Route>("admin", `routes/${code}/submit`, { method: "POST" });
-}
-
-export function approveRoute(code: string) {
-  return request<Route>("admin", `routes/${code}/approve`, { method: "POST" });
-}
-
-export function rejectRoute(code: string, notes: string) {
-  return request<Route>("admin", `routes/${code}/reject`, {
-    method: "POST",
-    body: { notes },
-  });
+export function deactivateRoute(routeId: number) {
+  return request<void>("admin", `routes/${routeId}`, { method: "DELETE" });
 }
 
 export function assignGuides(
-  code: string,
-  guides: { guideId: number; primary: boolean }[],
+  routeId: number,
+  guides: { guideId: number; name?: string; primary: boolean }[],
 ) {
-  return request<Route>("admin", `routes/${code}/guides`, {
+  return request<Route>("admin", `routes/${routeId}/guides`, {
     method: "PUT",
     body: { guides },
   });

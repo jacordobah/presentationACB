@@ -5,7 +5,11 @@ import { useResource } from "./useResource";
 export function useAssignedRoutes() {
   const user = useSessionUser();
   return useResource(`routes:assigned:${user.id}`, async () => {
-    const routes = await listRoutes({ guideId: user.id });
-    return routes.filter((route) => route.active);
+    const routes = await listRoutes();
+    return routes.filter(
+      (route) =>
+        route.active &&
+        route.guides.some((guide) => guide.guideId === user.id),
+    );
   });
 }

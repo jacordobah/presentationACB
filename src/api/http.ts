@@ -71,8 +71,22 @@ async function readError(response: Response) {
   const { status } = response;
   const body: unknown = await response.json().catch(() => null);
   if (body && typeof body === "object") {
-    const { message, detail } = body as { message?: unknown; detail?: unknown };
+    const { message, detail, error } = body as {
+      message?: unknown;
+      detail?: unknown;
+      error?: unknown;
+    };
     if (typeof message === "string") return new ApiError(status, message);
+    if (error && typeof error === "object") {
+      const fault = error as { message?: unknown; code?: unknown };
+      if (typeof fault.message === "string") {
+        return new ApiError(
+          status,
+          fault.message,
+          typeof fault.code === "string" ? fault.code : undefined,
+        );
+      }
+    }
     if (typeof detail === "string") return new ApiError(status, detail);
     if (Array.isArray(detail)) {
       const issues = detail

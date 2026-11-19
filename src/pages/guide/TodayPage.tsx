@@ -146,7 +146,11 @@ export default function TodayPage() {
   const today = todayInBogota();
   const trips = useResource(
     `trips:${today}`,
-    () => listTrips({ date: today }),
+    () =>
+      listTrips({
+        date: today,
+        guideId: user.role === "GUIDE" ? user.id : null,
+      }),
     {
       pollMs: LIST_POLL_MS,
     },
@@ -224,10 +228,10 @@ export default function TodayPage() {
                     (guide) => guide.guideId === user.id && guide.primary,
                   );
                   return (
-                    <li key={route.code} className="list-row">
+                    <li key={route.routeId} className="list-row">
                       <div className="list-row__top">
                         <div className="list-row__title">
-                          <span className="route-code">{route.code}</span>
+                          <span className="route-code">{route.routeCode}</span>
                           <span>{route.schoolName}</span>
                         </div>
                         <span className="chip">

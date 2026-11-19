@@ -39,8 +39,24 @@ export function addDays(date: string, days: number) {
   return isoDateFormat.format(result);
 }
 
+const TIME_ONLY = /^\d{2}:\d{2}(:\d{2})?$/;
+
 export function formatTime(instant: string | number) {
+  // admin_operations devuelve LocalTime como "HH:mm:ss"; no es un instante ISO
+  // y new Date("06:00:00") seria Invalid Date.
+  if (typeof instant === "string" && TIME_ONLY.test(instant)) {
+    return timeFormat.format(
+      new Date(`1970-01-01T${instant.slice(0, 5)}:00-05:00`),
+    );
+  }
   return timeFormat.format(new Date(instant));
+}
+
+// Combina una fecha calendario y una hora LocalTime del backend en un instante
+// de Bogota. Se usa para comparar citaciones y horas de inicio.
+export function atTripTime(date: string, time: string) {
+  const normalized = TIME_ONLY.test(time) ? time.slice(0, 5) : time;
+  return new Date(`${date}T${normalized}:00-05:00`);
 }
 
 export function formatLongDate(date: string) {

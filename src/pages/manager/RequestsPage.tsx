@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react";
+import { Route as RouteIcon } from "lucide-react";
 import { Link } from "react-router";
 import { listRoutes } from "../../api/routes";
 import { AsyncContent } from "../../components/AsyncContent";
@@ -7,9 +7,9 @@ import { useResource } from "../../hooks/useResource";
 import { LIST_POLL_MS } from "../../lib/config";
 
 export default function RequestsPage() {
-  const requests = useResource(
-    "routes:in-review",
-    () => listRoutes({ status: "IN_REVIEW" }),
+  const routes = useResource(
+    "routes:active",
+    async () => (await listRoutes()).filter((route) => route.active),
     { pollMs: LIST_POLL_MS },
   );
 
@@ -17,46 +17,42 @@ export default function RequestsPage() {
     <div className="page">
       <header className="page-header">
         <div className="page-header__title">
-          <h1>Solicitudes</h1>
+          <h1>Rutas</h1>
           <p className="page-header__subtitle">
-            Rutas propuestas que esperan tu revisión.
+            Rutas activas disponibles para la operación.
           </p>
         </div>
       </header>
       <AsyncContent
-        resource={requests}
-        loadingLabel="Cargando solicitudes…"
+        resource={routes}
+        loadingLabel="Cargando rutas…"
         isEmpty={(list) => list.length === 0}
-        empty={
-          <EmptyState icon={Inbox} title="No hay rutas por revisar">
-            Cuando un guía envíe una ruta a revisión aparecerá aquí.
-          </EmptyState>
-        }
+        empty={<EmptyState icon={RouteIcon} title="No hay rutas activas" />}
       >
         {(list) => (
           <ul className="list">
             {list.map((route) => (
-              <li key={route.code} className="list-row">
+              <li key={route.routeId} className="list-row">
                 <div className="list-row__title">
-                  <span className="route-code">{route.code}</span>
+                  <span className="route-code">{route.routeCode}</span>
                   <span>{route.schoolName}</span>
                 </div>
                 <dl className="facts">
                   <div>
-                    <dt>Propuesta por</dt>
-                    <dd>{route.proposedBy.name}</dd>
+                    <dt>Zona</dt>
+                    <dd>{route.zone ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt>Zona</dt>
-                    <dd>{route.zone}</dd>
+                    <dt>Jornada</dt>
+                    <dd>{route.shiftCode}</dd>
                   </div>
                 </dl>
                 <p className="muted">{route.description}</p>
                 <Link
                   className="button button--primary"
-                  to={`/manager/requests/${route.code}`}
+                  to={`/manager/routes/${route.routeId}`}
                 >
-                  Revisar ruta {route.code}
+                  Ver ruta {route.routeCode}
                 </Link>
               </li>
             ))}

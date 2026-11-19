@@ -18,8 +18,9 @@ import { MAX_STUDENTS } from "../../lib/rules";
 function pointName(
   geometries: TripGeometry[] | undefined,
   tripCode: TripCode,
-  code: string,
+  code: string | null,
 ) {
+  if (!code) return "—";
   const point = geometries
     ?.find((geometry) => geometry.tripCode === tripCode)
     ?.meetingPoints.find((candidate) => candidate.code === code);
@@ -61,7 +62,7 @@ function StudentRow({
         )}
       </dl>
       <div className="cluster">
-        {guardian && (
+        {guardian && guardian.phone && (
           <a className="button" href={`tel:${guardian.phone}`}>
             <Phone size={20} aria-hidden="true" />
             Llamar al acudiente
@@ -69,7 +70,7 @@ function StudentRow({
         )}
         <Link
           className="button"
-          to={`/guide/students/${student.id}?route=${student.routeCode}`}
+          to={`/guide/students/${student.id}?routeId=${student.routeId}`}
         >
           <Pencil size={20} aria-hidden="true" />
           Editar
@@ -89,11 +90,11 @@ function StudentRow({
 function RouteStudents({ route }: { route: Route }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const students = useResource(`students:${route.code}`, () =>
-    listStudents(route.code),
+  const students = useResource(`students:${route.routeId}`, () =>
+    listStudents(route.routeId),
   );
-  const geometries = useResource(`geometry:${route.code}`, () =>
-    listTripGeometries({ routeCode: route.code }),
+  const geometries = useResource(`geometry:${route.routeCode}`, () =>
+    listTripGeometries({ routeCode: route.routeCode }),
   );
   const [deactivating, setDeactivating] = useState<Student | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,13 +126,13 @@ function RouteStudents({ route }: { route: Route }) {
         return (
           <section className="section" aria-labelledby="students-title">
             <div className="section__header">
-              <h2 id="students-title">Ruta {route.code}</h2>
+              <h2 id="students-title">Ruta {route.routeCode}</h2>
               <button
                 type="button"
                 className="button button--primary"
                 disabled={full}
                 onClick={() =>
-                  navigate(`/guide/students/new?route=${route.code}`)
+                  navigate(`/guide/students/new?routeId=${route.routeId}`)
                 }
               >
                 <UserPlus size={20} aria-hidden="true" />
@@ -184,8 +185,8 @@ function RouteStudents({ route }: { route: Route }) {
               onCancel={() => setDeactivating(null)}
             >
               <p>
-                Deja de aparecer en la asistencia de la ruta {route.code}. Su
-                historial se conserva.
+                Deja de aparecer en la asistencia de la ruta {route.routeCode}.
+                Su historial se conserva.
               </p>
             </ConfirmDialog>
           </section>
@@ -217,18 +218,22 @@ export default function StudentsPage() {
       >
         {(list) => {
           const selected =
-            list.find((route) => route.code === searchParams.get("route")) ??
-            list[0];
+            list.find(
+              (route) => route.routeCode === searchParams.get("route"),
+            ) ?? list[0];
           return (
             <>
               <RoutePicker
                 routes={list}
-                selected={selected.code}
-                onSelect={(code) =>
-                  setSearchParams({ route: code }, { replace: true })
+                selected={selected.routeCode}
+                onSelect={(routeCode) =>
+                  setSearchParams({ route: routeCode }, { replace: true })
                 }
               />
-              <RouteStudents key={selected.code} route={selected} />
+              <RouteStudents
+                key={selected.routeId}
+                route={selected}
+              />
             </>
           );
         }}

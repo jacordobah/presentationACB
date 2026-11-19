@@ -1,29 +1,18 @@
 import { Route as RouteIcon } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router";
 import { listRoutes } from "../../api/routes";
-import type { RouteStatus } from "../../api/types";
-import { listZones } from "../../api/zones";
 import { useSessionUser } from "../../auth/AuthContext";
 import { AsyncContent } from "../../components/AsyncContent";
-import { RouteStatusChip } from "../../components/Chips";
-import { Field } from "../../components/Field";
 import { EmptyState } from "../../components/States";
 import { useResource } from "../../hooks/useResource";
-import { ROUTE_STATUS_LABELS, plural } from "../../lib/labels";
+import { plural } from "../../lib/labels";
 import { requiredGuides } from "../../lib/rules";
 
 export default function RoutesPage() {
   const user = useSessionUser();
-  const isManager = user.role === "MANAGER";
-  const basePath = isManager ? "/manager" : "/leader";
-  const [zone, setZone] = useState("");
-  const [status, setStatus] = useState<RouteStatus | "">("");
-  const zones = useResource(isManager ? "zones" : null, listZones);
-  const routes = useResource(`routes:${zone}:${status}`, async () =>
-    (await listRoutes({ zone: zone || null, status: status || null })).filter(
-      (route) => route.active,
-    ),
+  const basePath = user.role === "MANAGER" ? "/manager" : "/leader";
+  const routes = useResource("routes", async () =>
+    (await listRoutes()).filter((route) => route.active),
   );
 
   return (
@@ -31,57 +20,17 @@ export default function RoutesPage() {
       <header className="page-header">
         <div className="page-header__title">
           <h1>Rutas</h1>
-          {!isManager && (
+          {user.role !== "MANAGER" && (
             <p className="page-header__subtitle">Zona {user.zone}</p>
           )}
         </div>
       </header>
-      <div className="form-grid">
-        {isManager && (
-          <Field label="Zona">
-            {(control) => (
-              <select
-                {...control}
-                className="input"
-                value={zone}
-                onChange={(event) => setZone(event.target.value)}
-              >
-                <option value="">Todas las zonas</option>
-                {zones.data?.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-        )}
-        <Field label="Estado">
-          {(control) => (
-            <select
-              {...control}
-              className="input"
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as RouteStatus | "")
-              }
-            >
-              <option value="">Todos los estados</option>
-              {Object.entries(ROUTE_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-      </div>
       <AsyncContent
         resource={routes}
         loadingLabel="Cargando rutas…"
         isEmpty={(list) => list.length === 0}
         empty={
-          <EmptyState icon={RouteIcon} title="No hay rutas con esos filtros" />
+          <EmptyState icon={RouteIcon} title="No hay rutas activas" />
         }
       >
         {(list) => (
@@ -89,13 +38,13 @@ export default function RoutesPage() {
             {list.map((route) => {
               const required = requiredGuides(route.studentCount);
               return (
-                <li key={route.code} className="list-row">
+                <li key={route.routeId} className="list-row">
                   <div className="list-row__top">
                     <div className="list-row__title">
-                      <span className="route-code">{route.code}</span>
+                      <span className="route-code">{route.routeCode}</span>
                       <span>{route.schoolName}</span>
                     </div>
-                    <RouteStatusChip status={route.status} />
+                    <span className="chip">{route.shiftCode}</span>
                   </div>
                   <dl className="facts">
                     <div>
@@ -120,9 +69,9 @@ export default function RoutesPage() {
                   )}
                   <Link
                     className="button"
-                    to={`${basePath}/routes/${route.code}`}
+                    to={`${basePath}/routes/${route.routeId}`}
                   >
-                    Ver ruta {route.code}
+                    Ver ruta {route.routeCode}
                   </Link>
                 </li>
               );

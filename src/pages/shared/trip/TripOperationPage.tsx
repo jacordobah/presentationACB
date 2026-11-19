@@ -89,8 +89,8 @@ function TripOperation({
       return found ?? null;
     },
   );
-  const students = useResource(`students:${trip.routeCode}`, async () =>
-    (await listStudents(trip.routeCode)).filter((student) => student.active),
+  const students = useResource(`students:${trip.routeId}`, async () =>
+    (await listStudents(trip.routeId)).filter((student) => student.active),
   );
   const codes = useResource(
     `codes:${trip.routeCode}:${trip.date}`,
@@ -239,7 +239,11 @@ export default function TripOperationPage() {
   const today = todayInBogota();
   const trips = useResource(
     `trips:${today}`,
-    () => listTrips({ date: today }),
+    () =>
+      listTrips({
+        date: today,
+        guideId: user.role === "GUIDE" ? user.id : null,
+      }),
     {
       pollMs: POLL_INTERVAL_MS,
     },

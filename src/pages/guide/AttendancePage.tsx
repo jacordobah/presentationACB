@@ -28,22 +28,23 @@ export default function AttendancePage() {
       >
         {(list) => {
           const selected =
-            list.find((route) => route.code === searchParams.get("route")) ??
-            list[0];
+            list.find(
+              (route) => route.routeCode === searchParams.get("route"),
+            ) ?? list[0];
           return (
             <>
               <RoutePicker
                 routes={list}
-                selected={selected.code}
-                onSelect={(code) =>
-                  setSearchParams({ route: code }, { replace: true })
+                selected={selected.routeCode}
+                onSelect={(routeCode) =>
+                  setSearchParams({ route: routeCode }, { replace: true })
                 }
               />
               <section className="section" aria-labelledby="attendance-title">
-                <h2 id="attendance-title">Ruta {selected.code}</h2>
+                <h2 id="attendance-title">Ruta {selected.routeCode}</h2>
                 <AttendanceHistory
-                  key={selected.code}
-                  routeCode={selected.code}
+                  key={selected.routeId}
+                  routeId={selected.routeId}
                 />
               </section>
             </>

@@ -12,6 +12,10 @@ no route or trip codes, so the line in each KMZ must be named after its trip: th
 then the trip code, as in `MM01 541 Ruta hacia el colegio` or `MM01-542`. Lines named otherwise
 are ignored, and each trip uses its latest import with the meeting points of that import.
 
+Administrative routes are identified by the numeric `routeId` in `/api/admin/routes/{routeId}`.
+The `routeCode` is used for display and for the geographic calls to `/api/geo`; the gateway
+translates the codes to the numeric IDs that adminACB expects.
+
 ## Run with Docker
 
 The app and both backends share the `acb-net` network. Create it once:

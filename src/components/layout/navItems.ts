@@ -5,7 +5,6 @@ import {
   ClipboardCheck,
   Clock,
   House,
-  Inbox,
   ListTodo,
   Map,
   Route,
@@ -94,12 +93,6 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     },
   ],
   MANAGER: [
-    {
-      to: "/manager/requests",
-      label: "Solicitudes",
-      title: "Solicitudes",
-      icon: Inbox,
-    },
     { to: "/manager/live", label: "Mapa", title: "Mapa en vivo", icon: Map },
     { to: "/manager/routes", label: "Rutas", title: "Rutas", icon: Route },
     {

@@ -2,12 +2,13 @@ import { request } from "./http";
 import type { Trip, TripSummary } from "./types";
 
 interface TripFilters {
-  date?: string;
+  date: string;
   zone?: string | null;
   userId?: number | null;
+  guideId?: number | null;
 }
 
-export function listTrips(filters: TripFilters = {}) {
+export function listTrips(filters: TripFilters) {
   return request<Trip[]>("admin", "trips", { query: { ...filters } });
 }
 
@@ -19,8 +20,4 @@ export function finishTrip(id: number) {
   return request<TripSummary>("admin", `trips/${id}/finish`, {
     method: "POST",
   });
-}
-
-export function assumeTrip(id: number) {
-  return request<Trip>("admin", `trips/${id}/executors`, { method: "POST" });
 }
