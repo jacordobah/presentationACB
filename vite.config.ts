@@ -2,11 +2,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-// Mirrors the Nginx rewrites so `npm run dev` talks to adminACB and geolocaACB,
-// on the ports they publish on the host, the same way the container does.
-const apiProxy = (target: string, prefix: string) => ({
+// Mirrors the Nginx rewrites so `npm run dev` talks to the API gateway, the
+// single entry point for adminACB, geolocaACB and the Go GPS component.
+const apiProxy = (target: string, prefix: string, replacement: string) => ({
   target,
-  rewrite: (path: string) => path.replace(prefix, "/api/v1"),
+  rewrite: (path: string) => path.replace(prefix, replacement),
 });
 
 export default defineConfig({
@@ -48,8 +48,12 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      "/api/admin": apiProxy("http://localhost:8080", "/api/admin"),
-      "/api/geo": apiProxy("http://localhost:8000", "/api/geo"),
+      "/api/admin": apiProxy(
+        "http://localhost:5062",
+        "/api/admin",
+        "/api/v1/admin",
+      ),
+      "/api/geo": apiProxy("http://localhost:5062", "/api/geo", "/api/v1"),
     },
   },
 });

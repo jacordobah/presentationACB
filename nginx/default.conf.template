@@ -23,7 +23,7 @@ server {
 
     location /api/admin/ {
         set $admin_api ${ADMIN_API_URL};
-        rewrite ^/api/admin/(.*)$ /api/v1/$1 break;
+        rewrite ^/api/admin/(.*)$ /api/v1/admin/$1 break;
         proxy_pass $admin_api;
         error_page 502 503 504 = @admin_unavailable;
     }

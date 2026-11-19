@@ -10,8 +10,8 @@ services:
       - "${HTTPS_PORT:-8443}:443"
       - "${HTTP_PORT:-8088}:80"
     environment:
-      ADMIN_API_URL: ${ADMIN_API_URL:-http://admin-api:8080}
-      GEO_API_URL: ${GEO_API_URL:-http://geoloca-api:8000}
+      ADMIN_API_URL: ${ADMIN_API_URL:-http://api-gateway:5062}
+      GEO_API_URL: ${GEO_API_URL:-http://api-gateway:5062}
     networks:
       - default
       - acb-net

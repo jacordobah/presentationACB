@@ -20,9 +20,10 @@ The app and both backends share the `acb-net` network. Create it once:
 docker network create acb-net
 ```
 
-Start adminACB, the API gateway (`gatewayACB`) and geolocaACB from their repositories. The gateway
-joins `acb-net` as `api-gateway` and reaches adminACB through the host; geolocaACB joins with the
-alias `geoloca-api`. Then, from this one:
+Start adminACB, the API gateway (`gatewayACB`), geolocaACB and the Go GPS component from their
+repositories. The gateway joins `acb-net` as `api-gateway` and is the only entry point: it reaches
+adminACB through the host, geolocaACB through the alias `geoloca-api`, and the Go GPS as
+`geoloca-gps`. Then, from this one:
 
 ```sh
 cp .env.example .env
@@ -42,8 +43,8 @@ The URL is the `https://…trycloudflare.com` line in the logs.
 
 ## Run for development
 
-Requires Node 22.22 or later (24 LTS recommended). With adminACB and geolocaACB running, from the
-repository root:
+Requires Node 22.22 or later (24 LTS recommended). With adminACB, geolocaACB and the Go GPS
+running, from the repository root:
 
 ```sh
 cp .env.example .env
@@ -51,9 +52,9 @@ npm install
 npm run dev
 ```
 
-The app runs on http://localhost:5173 and the dev server proxies the API to the ports the backends
-publish on the host, 8080 and 8000, like Nginx does. `npm run lint`, `npm run build` and
-`npm run format` are also available.
+The app runs on http://localhost:5173 and the dev server proxies the API to the API gateway on
+port 5062, with the same rewrites as Nginx. `npm run lint`, `npm run build` and `npm run format`
+are also available.
 
 ## Open it from an Android phone
 
@@ -72,7 +73,11 @@ publish on the host, 8080 and 8000, like Nginx does. `npm run lint`, `npm run bu
 | `VITE_LOCATION_SIMULATOR` | `true` in Docker          | Includes the location simulator in the build. |
 | `VITE_POLL_INTERVAL_MS`   | `5000`                    | Refresh interval of the live maps.            |
 | `ADMIN_API_URL`           | `http://api-gateway:5062` | Nginx upstream for `/api/admin`.              |
-| `GEO_API_URL`             | `http://geoloca-api:8000` | Nginx upstream for `/api/geo`.                |
+| `GEO_API_URL`             | `http://api-gateway:5062` | Nginx upstream for `/api/geo`.                |
+
+Both `/api/admin` and `/api/geo` go through the API gateway. Nginx rewrites them to
+`/api/v1/admin` and `/api/v1`, so the browser never talks to adminACB, geolocaACB or the Go GPS
+directly.
 
 `VITE_*` values are read at build time, so changing them needs `--build`. The trip screen
 includes a location simulator to operate a trip away from the route.
