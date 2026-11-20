@@ -6,7 +6,9 @@ import { MapView } from "../../../components/map/MapView";
 import type { PointMarkerState } from "../../../components/map/markers";
 import { RouteLayer } from "../../../components/map/RouteLayer";
 import { UserMarker } from "../../../components/map/UserMarker";
+import { formatTime } from "../../../lib/dates";
 import type { Fix } from "../../../location/LocationContext";
+import { useTracking } from "../../../tracking/TrackingContext";
 
 export function TripMap({
   geometry,
@@ -20,6 +22,7 @@ export function TripMap({
   overlay?: ReactNode;
 }) {
   const [centerRequests, setCenterRequests] = useState(0);
+  const { lastSentAt } = useTracking();
 
   return (
     <div className="trip-map">
@@ -49,6 +52,11 @@ export function TripMap({
           <LocateFixed size={24} aria-hidden="true" />
         </button>
       </div>
+      {lastSentAt !== null && (
+        <div className="map-overlay trip-map__updated">
+          GPS · última señal {formatTime(lastSentAt)}
+        </div>
+      )}
       {overlay}
     </div>
   );

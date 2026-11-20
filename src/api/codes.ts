@@ -1,4 +1,4 @@
-import { geoPublicUrl, request } from "./http";
+import { ApiError, geoPublicUrl, request } from "./http";
 import type {
   ArrivalResult,
   CodeReport,
@@ -81,8 +81,21 @@ interface CodeReportFilters {
 }
 
 export async function listCodeReports(filters: CodeReportFilters = {}) {
-  const reports = await request<CodeReportDto[]>("geo", "status", {
-    query: { route: filters.routeCode, zone: filters.zone, date: filters.date },
-  });
-  return reports.map(toCodeReport);
+  try {
+    const reports = await request<CodeReportDto[]>("geo", "status", {
+      query: {
+        route: filters.routeCode,
+        zone: filters.zone,
+        date: filters.date,
+      },
+    });
+    return reports.map(toCodeReport);
+  } catch (error) {
+    // The status history endpoint has no backend contract yet. It must not
+    // block the guide from reporting an arrival and starting the trip.
+    if (error instanceof ApiError && [404, 405, 501].includes(error.status)) {
+      return [];
+    }
+    throw error;
+  }
 }

@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { Session } from "../api/auth";
-import type { Role, SessionUser } from "../api/types";
+import type { SessionUser } from "../api/types";
 
 export interface AuthContextValue {
   session: Session | null;
@@ -23,8 +23,4 @@ export function useSessionUser() {
   return session.user;
 }
 
-export const HOME_PATHS: Record<Role, string> = {
-  GUIDE: "/guide",
-  LEADER: "/leader/live",
-  MANAGER: "/manager/requests",
-};
+export const HOME_PATH = "/guide";

@@ -21,13 +21,16 @@ export interface LocationContextValue {
 export const LocationContext = createContext<LocationContextValue | null>(null);
 
 // Reading the location starts the GPS watch; it stops when no mounted component
-// needs it.
-export function useDeviceLocation() {
+// needs it. Pass false to read the context without requesting a location.
+export function useDeviceLocation(enabled = true) {
   const context = useContext(LocationContext);
   if (!context) {
     throw new Error("useDeviceLocation must be used inside LocationProvider");
   }
   const { watch } = context;
-  useEffect(() => watch(), [watch]);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    return watch();
+  }, [enabled, watch]);
   return context;
 }

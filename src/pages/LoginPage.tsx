@@ -1,10 +1,11 @@
 import { Bike, Eye, EyeOff } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { HOME_PATHS, useAuth } from "../auth/AuthContext";
+import { HOME_PATH, useAuth } from "../auth/AuthContext";
 import { Field } from "../components/Field";
 import { Notice } from "../components/Notice";
 import { errorMessage } from "../components/toast/ToastContext";
+import { ADMIN_APP_URL } from "../lib/config";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (session) return <Navigate to={HOME_PATHS[session.user.role]} replace />;
+  if (session) return <Navigate to={HOME_PATH} replace />;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,11 +29,11 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const user = await signIn(username.trim(), password);
-      const home = HOME_PATHS[user.role];
-      const roleSection = `/${home.split("/")[1]}`;
+      await signIn(username.trim(), password);
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from?.startsWith(roleSection) ? from : home, { replace: true });
+      navigate(from?.startsWith(HOME_PATH) ? from : HOME_PATH, {
+        replace: true,
+      });
     } catch (caught) {
       setError(errorMessage(caught));
       setSubmitting(false);
@@ -48,7 +49,7 @@ export default function LoginPage() {
           </span>
           <div>
             <h1>Al Colegio en Bici</h1>
-            <p className="muted">Ingreso para el equipo de operación</p>
+            <p className="muted">Ingreso para guías escolares</p>
           </div>
         </div>
 
@@ -106,6 +107,13 @@ export default function LoginPage() {
             {submitting ? "Ingresando…" : "Ingresar"}
           </button>
         </form>
+
+        {ADMIN_APP_URL && (
+          <p className="muted small">
+            ¿Eres parte del equipo administrativo?{" "}
+            <a href={ADMIN_APP_URL}>Ingresa al panel web</a>.
+          </p>
+        )}
       </div>
     </main>
   );

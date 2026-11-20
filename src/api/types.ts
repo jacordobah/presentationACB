@@ -26,9 +26,10 @@ export interface LatLng {
 
 export interface SessionUser {
   id: number;
-  name: string;
+  // ACB_auth_lo returns only id and role today; name/zone are optional.
+  name?: string;
   role: Role;
-  zone: string | null;
+  zone?: string | null;
 }
 
 export interface Zone {
