@@ -14,11 +14,10 @@ Nginx serves the build and proxies `/api/admin` to adminACB and `/api/geo` to
 geolocaACB. Both go through the API gateway, the only public entry point.
 
 Route geometry comes from geolocaACB's `GET /routes` and `GET /meeting-points`.
-geolocaACB stores no route or trip codes, so the line in each KMZ must be named
-after its trip: the route code and then the trip code, as in
-`MM01 541 Ruta hacia el colegio` or `MM01-542`. Lines named otherwise are
-ignored, and each trip uses its latest import with the meeting points of that
-import.
+The KMZ line name must start with the trip code (`541 Ruta hacia el colegio` or
+`542 Ruta de regreso`) and the route code comes from its folder (`MM01 - COLEGIO`).
+geolocaACB publishes both as `route_code` and `code`; each trip uses its latest
+import with the meeting points of that import.
 
 Administrative routes are identified by the numeric `routeId` in
 `/api/admin/routes/{routeId}`. The `routeCode` is used for display and for the
@@ -31,6 +30,19 @@ A fresh `adminACB` compose seeds:
 
 - `cpardo` / `admin2026`: `MANAGER`, for `webadminACB`.
 - `jbeltrano` / `guia2026`: `GUIDE`, for this app.
+
+## Local demo data
+
+After the stack is running, execute from the workspace root:
+
+```powershell
+.\Seed-Demo.ps1
+```
+
+It creates the `MM01` routes 541 and 542, assigns `jbeltrano`, assigns
+`pepe preto` to PE01 of 541, and creates both trips for today. It is
+re-runnable and uses the KMZ geometry already stored in MongoDB. Run it again
+after a `docker compose down -v` / `Start Docker.bat`, which erases these rows.
 
 ## Run with Docker
 
@@ -92,26 +104,25 @@ still need to be ported to `webadminACB` and are unavailable in the meantime:
 
 ## GPS tracking
 
-Tracking is implemented but **disabled by default**:
+Tracking is enabled for the local test stack:
 
 ```sh
-VITE_GPS_TRACKING_ENABLED=false
+VITE_GPS_TRACKING_ENABLED=true
+VITE_GPS_POLICY_ID=acb-local-v1
 ```
 
-Keep it off until:
-
-- geolocaACB publishes `geometry_version`, `association_status=verified` and
-  endpoints that satisfy GPS `OperationalReady` (today it does not).
-- gatewayACB authorizes the guide and trip before creating a tracking session.
-- GPS control/read APIs are enabled and share `GPS_INTERNAL_TOKEN` with the
-  gateway.
-- an approved `VITE_GPS_POLICY_ID` exists.
+geolocaACB publishes `geometry_version` and `association_status=verified`;
+gatewayACB validates the guide JWT and forces its own `GPS_POLICY_ID`. The GPS
+control/read APIs are enabled in the local compose files.
 
 When enabled, starting a trip creates a tracking session through
 `POST /api/geo/tracking-sessions`. The app then sends observations every
 `VITE_TRACKING_INTERVAL_MS` using the per-session credential. If tracking fails
 (422, 401, network or missing credential), the trip still starts and the UI
 warns that the route is running without GPS.
+
+Both 541 (start at PE01) and 542 (start at the school) are supported. For 542
+the school is added as the first stop, followed by the drop-off meeting points.
 
 Tracking is foreground-only: the wake lock keeps the screen on, but a PWA cannot
 reliably send positions while hidden or with the screen off. The credential is
@@ -130,19 +141,19 @@ The ETA is an estimate based on the remaining route distance and
 
 ## Environment variables
 
-| Variable                    | Default                   | Purpose                                                    |
-| --------------------------- | ------------------------- | ---------------------------------------------------------- |
-| `HTTPS_PORT`                | `8443`                    | Host port for HTTPS.                                       |
-| `HTTP_PORT`                 | `8088`                    | Host port for HTTP, used by the tunnel.                    |
-| `VITE_LOCATION_SIMULATOR`   | `true` in Docker          | Includes the location simulator in the build.              |
-| `VITE_POLL_INTERVAL_MS`     | `5000`                    | Refresh interval of the live data.                         |
-| `VITE_GPS_TRACKING_ENABLED` | `false`                   | Enables GPS session creation and observations.             |
-| `VITE_GPS_POLICY_ID`        | empty                     | Approved GPS policy id; required when tracking is enabled. |
-| `VITE_TRACKING_INTERVAL_MS` | `5000`                    | Observation cadence in milliseconds.                       |
-| `VITE_ESTIMATED_SPEED_KMH`  | `10`                      | Speed used for the displayed ETA estimate.                 |
-| `VITE_ADMIN_APP_URL`        | empty                     | Optional link to webadminACB on the login screen.          |
-| `ADMIN_API_URL`             | `http://api-gateway:5062` | Nginx upstream for `/api/admin`.                           |
-| `GEO_API_URL`               | `http://api-gateway:5062` | Nginx upstream for `/api/geo`.                             |
+| Variable                    | Default                   | Purpose                                           |
+| --------------------------- | ------------------------- | ------------------------------------------------- |
+| `HTTPS_PORT`                | `8443`                    | Host port for HTTPS.                              |
+| `HTTP_PORT`                 | `8088`                    | Host port for HTTP, used by the tunnel.           |
+| `VITE_LOCATION_SIMULATOR`   | `true` in Docker          | Includes the location simulator in the build.     |
+| `VITE_POLL_INTERVAL_MS`     | `5000`                    | Refresh interval of the live data.                |
+| `VITE_GPS_TRACKING_ENABLED` | `true` in local `.env`    | Enables GPS session creation and observations.    |
+| `VITE_GPS_POLICY_ID`        | `acb-local-v1`            | Reference policy; gatewayACB is authoritative.    |
+| `VITE_TRACKING_INTERVAL_MS` | `5000`                    | Observation cadence in milliseconds.              |
+| `VITE_ESTIMATED_SPEED_KMH`  | `10`                      | Speed used for the displayed ETA estimate.        |
+| `VITE_ADMIN_APP_URL`        | empty                     | Optional link to webadminACB on the login screen. |
+| `ADMIN_API_URL`             | `http://api-gateway:5062` | Nginx upstream for `/api/admin`.                  |
+| `GEO_API_URL`               | `http://api-gateway:5062` | Nginx upstream for `/api/geo`.                    |
 
 Both `/api/admin` and `/api/geo` go through the API gateway. Nginx rewrites them
 to `/api/v1/admin` and `/api/v1`, so the browser never talks to adminACB,

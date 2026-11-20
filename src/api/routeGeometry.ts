@@ -14,13 +14,14 @@ type Position = [number, number];
 
 interface GeoDocumentDto {
   _id: string;
-  import_id: string;
   name: string;
 }
 
 interface RouteDto extends GeoDocumentDto {
   route_code?: string | null;
   code?: string | null;
+  start_meeting_point_id?: string | null;
+  meeting_point_ids?: string[];
   geometry: { type: "LineString"; coordinates: Position[] };
 }
 
@@ -33,13 +34,6 @@ interface TripRoute {
   routeCode: string;
   tripCode: TripCode;
   route: RouteDto;
-}
-
-interface ImportResultDto {
-  message: string;
-  import_id: string;
-  saved_routes: number;
-  saved_points: number;
 }
 
 interface ValidationDto {
@@ -59,17 +53,6 @@ export interface LocationInput {
   accuracy: number | null;
   capturedAt: string;
 }
-
-const MAX_KMZ_BYTES = 20 * 1024 * 1024;
-
-// The geo API explains why an import failed in English, so the guide gets one
-// of these messages by status instead.
-const IMPORT_ERRORS: Record<number, string> = {
-  400: "El archivo debe ser un KMZ y no puede estar vacío.",
-  413: "El archivo supera el tamaño máximo de 20 MB.",
-  422: "No se pudo leer el KMZ. Revisa que tenga la línea del recorrido y sus puntos de encuentro.",
-  503: "El servicio de geolocalización no pudo guardar el archivo. Intenta de nuevo.",
-};
 
 const VALIDATION_ERRORS: Record<string, string> = {
   invalid_identifier:
@@ -112,6 +95,7 @@ export function tripCodesFromRoute(route: {
 function toTripGeometry(
   { routeCode, tripCode, route }: TripRoute,
   points: MeetingPointDto[],
+  startPoint: MeetingPointDto | undefined,
   schoolName: string,
 ): TripGeometry {
   const line = route.geometry.coordinates.map(toLatLng);
@@ -123,6 +107,23 @@ function toTripGeometry(
     radiusM: MEETING_POINT_RADIUS_M,
     location: toLatLng(point.location.coordinates),
   }));
+  // A 542 trip starts at the school; make it the first stop so arrival and
+  // attendance at the school work like any other point.
+  if (tripCode === "542") {
+    meetingPoints.unshift({
+      code: "COLEGIO",
+      order: 1,
+      name: startPoint?.name ?? schoolName,
+      description: startPoint?.description ?? null,
+      radiusM: DESTINATION_RADIUS_M,
+      location: startPoint
+        ? toLatLng(startPoint.location.coordinates)
+        : line[0],
+    });
+  }
+  meetingPoints.forEach((point, index) => {
+    point.order = index + 1;
+  });
   const lastPoint = meetingPoints[meetingPoints.length - 1];
   return {
     geoRouteId: route._id,
@@ -156,8 +157,8 @@ interface GeometryFilters {
 }
 
 // Every upload is a new import and the earlier ones stay stored, so each trip
-// uses only its latest line, the one with the greatest ObjectId. Imports
-// without meeting points are skipped, since a trip starts at its PE01.
+// uses only its latest line, the one with the greatest ObjectId. Each route
+// points to its own meeting points through meeting_point_ids.
 export async function listTripGeometries(
   filters: GeometryFilters = {},
   schoolName?: string | null,
@@ -166,11 +167,11 @@ export async function listTripGeometries(
     request<RouteDto[]>("geo", "routes"),
     request<MeetingPointDto[]>("geo", "meeting-points"),
   ]);
-  const importsWithPoints = new Set(points.map((point) => point.import_id));
+  const pointsById = new Map(points.map((point) => [point._id, point]));
   const latest = new Map<string, TripRoute>();
   for (const route of routes) {
     const trip = tripCodesFromRoute(route);
-    if (!trip || !importsWithPoints.has(route.import_id)) continue;
+    if (!trip) continue;
     if (filters.routeCode && trip.routeCode !== filters.routeCode) continue;
     if (filters.tripCode && trip.tripCode !== filters.tripCode) continue;
     if (filters.zone && !trip.routeCode.startsWith(filters.zone)) continue;
@@ -181,13 +182,22 @@ export async function listTripGeometries(
     }
   }
   return [...latest.values()]
-    .map((trip) =>
-      toTripGeometry(
+    .map((trip) => {
+      const routePoints = (trip.route.meeting_point_ids ?? [])
+        .map((id) => pointsById.get(id))
+        .filter((point): point is MeetingPointDto => point !== undefined);
+      if (routePoints.length === 0) return null;
+      const startPoint = trip.route.start_meeting_point_id
+        ? pointsById.get(trip.route.start_meeting_point_id)
+        : undefined;
+      return toTripGeometry(
         trip,
-        points.filter((point) => point.import_id === trip.route.import_id),
+        routePoints,
+        startPoint,
         schoolName ?? "Colegio",
-      ),
-    )
+      );
+    })
+    .filter((geometry): geometry is TripGeometry => geometry !== null)
     .sort(
       (a, b) =>
         a.routeCode.localeCompare(b.routeCode) ||
@@ -195,43 +205,8 @@ export async function listTripGeometries(
     );
 }
 
-// Reports whether one of the imported lines is named after the trip, which is
-// what ties the import to it. The geo API cannot delete imports, so one that is
-// not tied stays stored.
-export async function importKmz(
-  routeCode: string,
-  tripCode: TripCode,
-  file: File,
-) {
-  if (!file.name.toLowerCase().endsWith(".kmz")) {
-    throw new Error("El archivo debe tener la extensión .kmz.");
-  }
-  if (file.size > MAX_KMZ_BYTES) {
-    throw new Error("El archivo supera el tamaño máximo de 20 MB.");
-  }
-  const form = new FormData();
-  form.append("file", file);
-  const result = await request<ImportResultDto>("geo", "imports/kmz", {
-    method: "POST",
-    form,
-  }).catch((error: unknown) => {
-    if (error instanceof ApiError && IMPORT_ERRORS[error.status]) {
-      throw new ApiError(error.status, IMPORT_ERRORS[error.status]);
-    }
-    throw error;
-  });
-  const routes = await request<RouteDto[]>("geo", "routes", {
-    query: { import_id: result.import_id },
-  });
-  const linked = routes.some((route) => {
-    const trip = tripCodesFromRoute(route);
-    return trip?.routeCode === routeCode && trip.tripCode === tripCode;
-  });
-  return { linked };
-}
-
-// The geo API decides whether a position counts as an arrival at the PE01 of a
-// trip, with its own radius and limit on the GPS accuracy.
+// The geo API decides whether a position counts as an arrival at the first
+// point of a trip, with its own radius and limit on the GPS accuracy.
 export async function validateFirstMeetingPoint(
   geoRouteId: string,
   input: LocationInput,
