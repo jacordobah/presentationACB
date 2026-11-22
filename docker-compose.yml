@@ -11,14 +11,17 @@ services:
         VITE_TRACKING_INTERVAL_MS: ${VITE_TRACKING_INTERVAL_MS:-5000}
         VITE_ESTIMATED_SPEED_KMH: ${VITE_ESTIMATED_SPEED_KMH:-10}
         VITE_ADMIN_APP_URL: ${VITE_ADMIN_APP_URL:-}
-    # Reverse Proxy: sin puertos publicados; se entra por acb_reverse_proxy (8088)
+    # ACB_Gateway_RP: entrega la app de guias y es su unica puerta hacia el Gateway.
+    container_name: acb_gateway_rp
+    ports:
+      - "8180:80"      # HTTP
+      - "9443:443"     # HTTPS (certificado autofirmado)
     environment:
       ADMIN_API_URL: ${ADMIN_API_URL:-http://api-gateway:5062}
       GEO_API_URL: ${GEO_API_URL:-http://api-gateway:5062}
     networks:
-      default: {}
-      acb-net:
-        aliases: [acb-mobile-fe]
+      - default
+      - acb-net
     restart: unless-stopped
 
   tunnel:
