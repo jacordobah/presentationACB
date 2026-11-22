@@ -26,6 +26,7 @@ import {
   readTracking,
   saveTracking,
   saveTrackingHandle,
+  stageTrackingObservation,
 } from "../tracking/trackingStore";
 
 function ActiveTripTracking({
@@ -174,34 +175,48 @@ function ActiveTripTracking({
         return;
       }
       const current = fixRef.current;
-      if (!current) {
+      if (!record.pendingObservation && !current) {
         publish("active", "Esperando señal de ubicación…");
         return;
       }
-      if (current.simulated) {
+      if (!record.pendingObservation && current?.simulated) {
         publish("paused", "La ubicación simulada no se envía al GPS.");
         return;
       }
 
+      if (!record.pendingObservation) {
+        if (
+          current?.accuracy == null ||
+          !Number.isFinite(current.accuracy) ||
+          current.accuracy <= 0
+        ) {
+          publish("paused", "Esperando una medición con precisión conocida…");
+          return;
+        }
+        record = stageTrackingObservation(record, {
+          sequence: record.nextSequence,
+          latitude: current.lat,
+          longitude: current.lng,
+          accuracy_m: current.accuracy,
+          captured_at: new Date(current.timestamp).toISOString(),
+        });
+        saveTracking(record);
+      }
+
+      const pendingObservation = record.pendingObservation;
+      if (!pendingObservation) return;
       sending = true;
       try {
         await sendTrackingObservation(
           record.trackingId,
-          {
-            sequence: record.nextSequence,
-            latitude: current.lat,
-            longitude: current.lng,
-            ...(current.accuracy !== null
-              ? { accuracy_m: current.accuracy }
-              : {}),
-            captured_at: new Date(current.timestamp).toISOString(),
-          },
+          pendingObservation,
           record.credential,
         );
         record = {
           ...record,
           nextSequence: record.nextSequence + 1,
           lastSentAt: Date.now(),
+          pendingObservation: undefined,
         };
         saveTracking(record);
         publish("active");
@@ -210,15 +225,18 @@ function ActiveTripTracking({
           if (error.status === 409) {
             try {
               const session = await getTrackingSession(record.trackingId);
-              record = {
-                ...record,
-                nextSequence: Math.max(
-                  1,
-                  (session.session.last_sequence ?? 0) + 1,
-                ),
-              };
-              saveTracking(record);
-              publish("retrying", "Sincronizando la secuencia del GPS…");
+              const lastSequence = session.session.last_sequence ?? 0;
+              if (lastSequence >= record.nextSequence) {
+                record = {
+                  ...record,
+                  nextSequence: lastSequence + 1,
+                  pendingObservation: undefined,
+                };
+                saveTracking(record);
+                publish("retrying", "Sincronizando la secuencia del GPS…");
+              } else {
+                publish("retrying", "Reintentando la misma posición GPS…");
+              }
             } catch (syncError) {
               if (
                 syncError instanceof ApiError &&
@@ -249,6 +267,7 @@ function ActiveTripTracking({
             record = {
               ...record,
               nextSequence: record.nextSequence + 1,
+              pendingObservation: undefined,
             };
             saveTracking(record);
             publish(
