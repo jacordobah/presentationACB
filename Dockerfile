@@ -24,13 +24,6 @@ ENV VITE_LOCATION_SIMULATOR=$VITE_LOCATION_SIMULATOR \
 RUN npm run build
 
 FROM nginx:1.30.5-alpine3.24
-# Self-signed certificate for HTTPS on the local network; the tunnel provides a trusted one.
-RUN apk add --no-cache openssl \
-    && mkdir -p /etc/nginx/certs \
-    && openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
-        -subj "/CN=localhost" \
-        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
-        -keyout /etc/nginx/certs/acb.key \
-        -out /etc/nginx/certs/acb.crt
+RUN mkdir -p /etc/nginx/certs
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
