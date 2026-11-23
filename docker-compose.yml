@@ -13,10 +13,22 @@ services:
         VITE_ADMIN_APP_URL: ${VITE_ADMIN_APP_URL:-}
     ports:
       - "${HTTPS_PORT:-8443}:443"
-      - "${HTTP_PORT:-8088}:80"
     environment:
-      ADMIN_API_URL: ${ADMIN_API_URL:-http://api-gateway:5062}
-      GEO_API_URL: ${GEO_API_URL:-http://api-gateway:5062}
+      ADMIN_API_URL: https://api-gateway:5062
+      GEO_API_URL: https://api-gateway:5062
+    volumes:
+      - type: bind
+        source: ${ACB_TLS_DIR:?Set external ACB_TLS_DIR}/web.crt
+        target: /etc/nginx/certs/web.crt
+        read_only: true
+      - type: bind
+        source: ${ACB_TLS_DIR:?Set external ACB_TLS_DIR}/web.key
+        target: /etc/nginx/certs/web.key
+        read_only: true
+      - type: bind
+        source: ${ACB_TLS_DIR:?Set external ACB_TLS_DIR}/ca.crt
+        target: /etc/nginx/certs/ca.crt
+        read_only: true
     networks:
       - default
       - acb-net
@@ -25,7 +37,12 @@ services:
   tunnel:
     image: cloudflare/cloudflared:2026.9.3
     profiles: ["tunnel"]
-    command: tunnel --no-autoupdate --url http://web:80
+    command: tunnel --no-autoupdate --url https://web:443 --origin-ca-pool /run/acb-tls/ca.crt
+    volumes:
+      - type: bind
+        source: ${ACB_TLS_DIR:?Set external ACB_TLS_DIR}/ca.crt
+        target: /run/acb-tls/ca.crt
+        read_only: true
     depends_on:
       - web
     restart: unless-stopped

@@ -6,6 +6,7 @@ import {
   writeJson,
   writeSessionJson,
 } from "../lib/storage";
+import type { TrackingObservationInput } from "../api/tracking";
 
 export interface TrackingRecord {
   tripId: number;
@@ -14,6 +15,9 @@ export interface TrackingRecord {
   nextSequence: number;
   startedAt: number;
   lastSentAt: number | null;
+  // Persist the exact body until acknowledged. Reusing its sequence with a
+  // newer fix would turn an uncertain success into a sequence conflict.
+  pendingObservation?: TrackingObservationInput;
 }
 
 export interface TrackingHandle {
@@ -24,6 +28,15 @@ export interface TrackingHandle {
 const recordKey = (tripId: number) => `acb.tracking.${tripId}`;
 const handleKey = (tripId: number) => `acb.trackingHandle.${tripId}`;
 const idempotencyKey = (tripId: number) => `acb.trackingKey.${tripId}`;
+
+export function stageTrackingObservation(
+  record: TrackingRecord,
+  observation: TrackingObservationInput,
+): TrackingRecord {
+  return record.pendingObservation
+    ? record
+    : { ...record, pendingObservation: observation };
+}
 
 export function readTracking(tripId: number) {
   return readSessionJson<TrackingRecord>(recordKey(tripId));
