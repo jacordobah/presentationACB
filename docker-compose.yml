@@ -11,6 +11,8 @@ services:
         VITE_TRACKING_INTERVAL_MS: ${VITE_TRACKING_INTERVAL_MS:-5000}
         VITE_ESTIMATED_SPEED_KMH: ${VITE_ESTIMATED_SPEED_KMH:-10}
         VITE_ADMIN_APP_URL: ${VITE_ADMIN_APP_URL:-}
+    # ACB_Gateway_RP: entrega la app de guias y es su unica puerta hacia el Gateway.
+    container_name: acb_gateway_rp
     ports:
       - "${HTTPS_PORT:-8443}:443"
     environment:
